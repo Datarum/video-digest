@@ -5,11 +5,14 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from .analyzer import Summary, Chapter
+from .analyzer import Summary
 from .frame_extractor import Frame
 
 
+# ── frame matching ────────────────────────────────────────────────────────────
+
 def _nearest_frame(frames: list, target_time: float) -> Optional[Frame]:
+    """Return the frame whose timestamp is closest to target_time."""
     if not frames:
         return None
     return min(frames, key=lambda f: abs(f.timestamp - target_time))
@@ -19,7 +22,10 @@ def _frames_already_used(used: set, frame: Frame) -> bool:
     return str(frame.path) in used
 
 
+# ── image path handling ───────────────────────────────────────────────────────
+
 def _copy_frames(frames: list, dest_dir: Path) -> dict:
+    """Copy frame files into dest_dir/frames/ and return {original_path: relative_path}."""
     frames_dir = dest_dir / "frames"
     frames_dir.mkdir(parents=True, exist_ok=True)
     mapping = {}
@@ -30,6 +36,8 @@ def _copy_frames(frames: list, dest_dir: Path) -> dict:
         mapping[str(frame.path)] = f"frames/{frame.path.name}"
     return mapping
 
+
+# ── markdown rendering ────────────────────────────────────────────────────────
 
 def _youtube_url(video_id: str, timestamp: float) -> str:
     t = int(timestamp)
@@ -45,6 +53,7 @@ def _render_markdown(
 ) -> str:
     lines = []
 
+    # ── header ────────────────────────────────────────────────────────────────
     lines.append(f"# {summary.title}\n")
     lines.append(
         f"**Channel**: {channel}  "
@@ -53,16 +62,12 @@ def _render_markdown(
     )
     lines.append("---\n")
 
+    # ── overview ──────────────────────────────────────────────────────────────
     lines.append("## Overview\n")
     lines.append(f"{summary.overview}\n")
     lines.append("---\n")
 
-    lines.append("## Key Points\n")
-    for point in summary.key_points:
-        lines.append(f"- {point}")
-    lines.append("")
-    lines.append("---\n")
-
+    # ── chapters ──────────────────────────────────────────────────────────────
     lines.append("## Chapters\n")
     used_frame_paths = set()
 
@@ -71,6 +76,7 @@ def _render_markdown(
         ts = chapter.timestamp_str
         lines.append(f"### [{chapter.title}]({yt_link}) {ts}\n")
 
+        # Find nearest unused frame for this chapter
         candidate = _nearest_frame(summary.frames, chapter.start_time)
         if candidate and not _frames_already_used(used_frame_paths, candidate):
             rel_path = frame_path_map.get(str(candidate.path))
@@ -80,6 +86,7 @@ def _render_markdown(
 
         lines.append(f"{chapter.summary}\n")
 
+    # ── remaining frames ──────────────────────────────────────────────────────
     leftover = [f for f in summary.frames if str(f.path) not in used_frame_paths]
     if leftover:
         lines.append("---\n")
@@ -93,6 +100,8 @@ def _render_markdown(
     return "\n".join(lines)
 
 
+# ── public API ────────────────────────────────────────────────────────────────
+
 def save_markdown(
     summary: Summary,
     output_path: Path,
@@ -100,6 +109,7 @@ def save_markdown(
     channel: str = "",
     duration_str: str = "",
 ) -> Path:
+    """Render summary to a Markdown file with embedded screenshot references."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -118,6 +128,7 @@ def save_markdown(
 
 
 def save_json(summary: Summary, output_path: Path) -> Path:
+    """Export summary to a JSON file."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
