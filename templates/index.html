@@ -4,6 +4,11 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>VideoDigest — YouTube 视频总结</title>
+<!-- Caveat: handwriting font for diagram nodes -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- rough.js — Excalidraw-style hand-drawn rendering -->
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4/bundled/rough.js"></script>
 <style>
 :root {
   --bg: #f1f5f9;
@@ -190,20 +195,105 @@ select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,2
 /* overview */
 .overview-text { font-size: 15px; line-height: 1.7; color: var(--text); }
 
-/* key points */
-.key-points { list-style: none; display: flex; flex-direction: column; gap: 8px; }
-.key-points li {
-  display: flex; gap: 10px; align-items: flex-start;
-  font-size: 14px; line-height: 1.5;
+/* core structure diagram card header */
+.diagram-card-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 12px;
 }
-.key-points li::before {
-  content: "";
+.diagram-card-hdr .section-label { margin-bottom: 0; }
+.btn-expand {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none;
+  border: 1.5px solid var(--border);
+  border-radius: 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background .15s, color .15s, border-color .15s;
+}
+.btn-expand:hover { background: var(--bg); color: var(--primary); border-color: var(--primary); }
+
+/* core structure diagram — rough.js canvas */
+.diagram-wrap {
+  background: #fffdf5;
+  border: 1.5px solid #e5dfc8;
+  border-radius: 10px;
+  padding: 20px;
+  overflow-x: auto;
+}
+#res-diagram-canvas {
   display: block;
-  width: 7px; height: 7px;
-  border-radius: 50%;
-  background: var(--primary);
+  width: 100%;
+}
+
+/* ── diagram modal ──────────────────────────────────────────────────────── */
+#diagram-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.6);
+}
+#diagram-modal-bg {
+  position: absolute;
+  inset: 0;
+}
+#diagram-modal-inner {
+  position: relative;
+  background: #faf9f4;
+  border-radius: 16px;
+  width: calc(100vw - 48px);
+  max-width: 1240px;
+  height: calc(100vh - 64px);
+  max-height: 920px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 24px 80px rgba(0,0,0,.35);
+}
+#diagram-modal-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1.5px solid #e5dfc8;
   flex-shrink: 0;
-  margin-top: 6px;
+  background: #fefcf5;
+}
+#diagram-modal-hdr .modal-title { font-weight: 700; font-size: 14px; color: var(--text); }
+#diagram-modal-hdr .modal-hint  { font-size: 12px; color: var(--text-muted); }
+.modal-close {
+  background: none; border: none; font-size: 20px; line-height: 1;
+  cursor: pointer; color: var(--text-muted);
+  padding: 4px 8px; border-radius: 6px;
+}
+.modal-close:hover { background: var(--bg); color: var(--text); }
+#diagram-modal-body {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  position: relative;
+}
+#diagram-modal-canvas {
+  display: block;
+  cursor: grab;
+  touch-action: none;
+}
+#diagram-modal-canvas:active { cursor: grabbing; }
+#diagram-modal-footer {
+  padding: 6px 20px;
+  font-size: 11px;
+  color: var(--text-muted);
+  background: #fefcf5;
+  border-top: 1px solid #e5dfc8;
+  flex-shrink: 0;
+  text-align: center;
 }
 
 /* chapters */
@@ -410,10 +500,16 @@ select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,2
       <div class="overview-text" id="res-overview"></div>
     </div>
 
-    <!-- key points -->
-    <div class="card">
-      <div class="section-label">关键要点</div>
-      <ul class="key-points" id="res-keypoints"></ul>
+    <!-- core structure diagram — rough.js Excalidraw-style canvas -->
+    <div class="card" id="diagram-card" style="display:none">
+      <div class="diagram-card-hdr">
+        <div class="section-label">核心结构</div>
+        <button class="btn-expand" onclick="openDiagramModal()">⛶ 展开浏览</button>
+      </div>
+      <div class="diagram-wrap" onclick="openDiagramModal()" style="cursor:pointer" title="点击展开全图">
+        <canvas id="res-diagram-canvas"></canvas>
+        <p style="text-align:center;font-size:11px;color:#b09060;margin-top:6px;margin-bottom:0">缩略图 · 点击展开查看全图</p>
+      </div>
     </div>
 
     <!-- chapters -->
@@ -432,10 +528,29 @@ select:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(99,102,2
 
 </div>
 
+<!-- core structure diagram — full-screen modal with pan/zoom -->
+<div id="diagram-modal">
+  <div id="diagram-modal-bg" onclick="closeDiagramModal()"></div>
+  <div id="diagram-modal-inner">
+    <div id="diagram-modal-hdr">
+      <span class="modal-title">核心结构</span>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="modal-hint">拖动平移 · 滚轮缩放 · Esc 关闭</span>
+        <button class="modal-close" onclick="closeDiagramModal()">✕</button>
+      </div>
+    </div>
+    <div id="diagram-modal-body">
+      <canvas id="diagram-modal-canvas"></canvas>
+    </div>
+    <div id="diagram-modal-footer">双指捏合缩放（触屏）</div>
+  </div>
+</div>
+
 <script>
 // ── state ──────────────────────────────────────────────────────────────────
 const SERVER_HAS_KEY = {{ server_has_key | tojson }};
 let _lastResult = null;
+let _currentDiagramData = null;
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function $(id) { return document.getElementById(id); }
@@ -460,6 +575,434 @@ function showError(msg, detail) {
   $('analyze-btn').disabled = false;
   $('analyze-btn').textContent = '🔄 重试';
 }
+
+// ── Diagram core renderer ──────────────────────────────────────────────────
+// Renders diagram onto `canvas` at `drawW` CSS-pixel width.
+// Sets canvas.width/height (physical) and canvas.style.width/height (CSS px).
+function _renderDiagram(diagramData, canvas, drawW) {
+  const nodes = diagramData.nodes || [];
+  const edges = diagramData.edges || [];
+  if (!nodes.length) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = drawW;
+
+  // ── Monet-inspired palette ────────────────────────────────────────────────
+  const iMaxW = Math.min(W * 0.27, 195);
+  const STYLES = {
+    core: {
+      font: 'bold 17px Caveat, sans-serif', lineH: 23, padX: 20, padY: 15,
+      minW: 200, maxW: Math.min(W * 0.44, 300),
+      fill: '#fef3c7', stroke: '#d97706', strokeW: 2.5, roughness: 1.5, textColor: '#78350f',
+    },
+    phase: {
+      font: '700 15px Caveat, sans-serif', lineH: 20, padX: 14, padY: 11,
+      minW: 115, maxW: Math.min(W * 0.24, 175),
+      fill: '#e0f2fe', stroke: '#0284c7', strokeW: 2.0, roughness: 1.3, textColor: '#0c4a6e',
+    },
+    insight: {
+      font: '14px Caveat, sans-serif', lineH: 18, padX: 12, padY: 10,
+      minW: 120, maxW: iMaxW,
+      fill: '#fdf4ff', stroke: '#a855f7', strokeW: 1.5, roughness: 1.2, textColor: '#581c87',
+    },
+  };
+
+  // ── CJK-aware text width ──────────────────────────────────────────────────
+  const _mc = document.createElement('canvas').getContext('2d');
+
+  function parseFontSize(fontStr) {
+    const m = fontStr.match(/(\d+(?:\.\d+)?)px/);
+    return m ? +m[1] : 16;
+  }
+
+  function textW(str, font) {
+    _mc.font = font;
+    const measured = _mc.measureText(str).width;
+    const fs = parseFontSize(font);
+    const cjk = (str.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\uff00-\uffef]/g) || []).length;
+    const minW = cjk * fs * 0.97 + (str.length - cjk) * fs * 0.56;
+    return Math.max(measured, minW);
+  }
+
+  function wrapText(text, font, maxW) {
+    const parts = text.split(' ');
+    const lines = [];
+    let cur = '';
+    for (const p of parts) {
+      const test = cur ? cur + ' ' + p : p;
+      if (textW(test, font) > maxW && cur) { lines.push(cur); cur = p; }
+      else cur = test;
+    }
+    if (cur) lines.push(cur);
+    // Secondary char-level split for long CJK runs
+    const out = [];
+    for (const ln of lines) {
+      if (textW(ln, font) <= maxW * 1.05) { out.push(ln); continue; }
+      let seg = '';
+      for (const ch of ln) {
+        if (textW(seg + ch, font) > maxW && seg) { out.push(seg); seg = ch; }
+        else seg += ch;
+      }
+      if (seg) out.push(seg);
+    }
+    return out.length ? out : [text.slice(0, 10) + '…'];
+  }
+
+  // ── Build graph maps ──────────────────────────────────────────────────────
+  const children = {};
+  nodes.forEach(n => children[n.id] = []);
+  edges.forEach(e => { if (children[e.from] !== undefined) children[e.from].push(e.to); });
+  const root = nodes.find(n => n.type === 'core');
+  if (!root) return;
+
+  // ── Compute node dimensions ───────────────────────────────────────────────
+  const dims = {};
+  nodes.forEach(n => {
+    const s = STYLES[n.type] || STYLES.insight;
+    const maxTW = s.maxW - s.padX * 2;
+    const lines = wrapText(n.label, s.font, maxTW);
+    const measuredW = lines.reduce((m, l) => Math.max(m, textW(l, s.font)), 0);
+    const w = Math.max(s.minW, Math.min(s.maxW, measuredW + s.padX * 2 + 6));
+    const h = s.padY * 2 + lines.length * s.lineH;
+    dims[n.id] = { w, h, lines, style: s };
+  });
+
+  // ── Radial layout ─────────────────────────────────────────────────────────
+  // Root at center. Phase nodes at R1 (inner ring). Insight nodes branch
+  // outward from their parent phase along the radial direction, spread
+  // perpendicular to it — this keeps each branch self-contained and
+  // prevents overlap between branches.
+  const phaseIds = children[root.id] || [];
+  const pCount = Math.max(phaseIds.length, 1);
+
+  // Scale radii to W so the modal (wide) spreads nicely and the card fits
+  const R1 = Math.min(W * 0.165, 165);
+  const R2 = Math.min(W * 0.36, 300);
+  const cX = W / 2;
+  const cY = R2 + (dims[root.id]?.h || 60) / 2 + 30;
+  const pos = {};
+  const rd = dims[root.id];
+  pos[root.id] = { x: cX - rd.w / 2, y: cY - rd.h / 2 };
+
+  // Border-exit point: where a line from node-center toward (tx,ty) exits its border
+  function exitPt(p, d, tx, ty) {
+    const ncx = p.x + d.w / 2, ncy = p.y + d.h / 2;
+    const dx = tx - ncx, dy = ty - ncy;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return { x: ncx, y: ncy };
+    const hw = d.w / 2 + 1, hh = d.h / 2 + 1;
+    const tx_ = dx ? Math.abs(hw / dx) : Infinity;
+    const ty_ = dy ? Math.abs(hh / dy) : Infinity;
+    const t = Math.min(tx_, ty_);
+    return { x: ncx + dx * t, y: ncy + dy * t };
+  }
+
+  // Half-extent of a box along the radial direction (cosA, sinA).
+  // = projection of the box semi-axes onto the radial unit vector.
+  // This is the exact distance from box center to the box edge in that direction.
+  function radHalf(d, cosA, sinA) {
+    return d.w / 2 * cosA + d.h / 2 * sinA;
+  }
+
+  phaseIds.forEach((pid, pi) => {
+    const pAngle = -Math.PI / 2 + (2 * Math.PI * pi / pCount);
+    const cosA = Math.abs(Math.cos(pAngle));
+    const sinA = Math.abs(Math.sin(pAngle));
+    const rdx  = Math.cos(pAngle);
+    const rdy  = Math.sin(pAngle);
+    const pd   = dims[pid];
+    const pCX  = cX + R1 * rdx;
+    const pCY  = cY + R1 * rdy;
+    pos[pid] = { x: pCX - pd.w / 2, y: pCY - pd.h / 2 };
+
+    const iIds = children[pid] || [];
+    if (!iIds.length) return;
+
+    // Stack insight nodes outward along the radial direction, one after another.
+    // curR = current "outer edge" distance along the radial from the phase center.
+    // Start just past the phase node's own radial half-extent + gap.
+    let curR = radHalf(pd, cosA, sinA) + 14;
+
+    iIds.forEach((iid) => {
+      const id_ = dims[iid];
+      const rh = radHalf(id_, cosA, sinA);  // half-extent of this insight
+      const centerR = curR + rh;             // insight center along radial
+      pos[iid] = {
+        x: pCX + rdx * centerR - id_.w / 2,
+        y: pCY + rdy * centerR - id_.h / 2,
+      };
+      curR = centerR + rh + 16;             // advance past insight + gap
+    });
+  });
+
+  // ── Bounding-box: measure actual extent of every placed node ─────────────
+  // Then shift the whole diagram so every node has ≥ PAD margin on all sides,
+  // and let the canvas grow beyond W if needed (modal can pan; thumbnail scales).
+  const PAD = 24;
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    const p = pos[n.id]; if (!p) return;
+    const d = dims[n.id];
+    if (p.x       < minX) minX = p.x;
+    if (p.x + d.w > maxX) maxX = p.x + d.w;
+    if (p.y       < minY) minY = p.y;
+    if (p.y + d.h > maxY) maxY = p.y + d.h;
+  });
+  const shiftX = minX < PAD ? PAD - minX : 0;
+  const shiftY = minY < PAD ? PAD - minY : 0;
+  if (shiftX > 0 || shiftY > 0) {
+    Object.keys(pos).forEach(id => {
+      if (!pos[id]) return;
+      pos[id].x += shiftX;
+      pos[id].y += shiftY;
+    });
+  }
+  const actualW = maxX + shiftX + PAD;   // may exceed W if branches are deep
+  const canvasH = maxY + shiftY + PAD;
+
+  // ── Canvas setup ──────────────────────────────────────────────────────────
+  canvas.width  = Math.round(actualW * dpr);
+  canvas.height = Math.round(canvasH * dpr);
+  canvas.style.width  = actualW + 'px';
+  canvas.style.height = canvasH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const rc = rough.canvas(canvas);
+
+  // ── Draw edges (below nodes) ──────────────────────────────────────────────
+  edges.forEach((edge, ei) => {
+    const fp = pos[edge.from], tp = pos[edge.to];
+    if (!fp || !tp) return;
+    const fd = dims[edge.from], td = dims[edge.to];
+    const tcX = tp.x + td.w / 2, tcY = tp.y + td.h / 2;
+    const fcX = fp.x + fd.w / 2, fcY = fp.y + fd.h / 2;
+    const ep1 = exitPt(fp, fd, tcX, tcY);
+    const ep2 = exitPt(tp, td, fcX, fcY);
+
+    rc.line(ep1.x, ep1.y, ep2.x, ep2.y, {
+      roughness: 1.2, stroke: '#94a3b8', strokeWidth: 1.7, seed: ei * 7 + 1,
+    });
+    // Arrowhead at ep2
+    const ang = Math.atan2(ep2.y - ep1.y, ep2.x - ep1.x);
+    const al = 9, aa = 0.42;
+    rc.line(ep2.x, ep2.y, ep2.x - al * Math.cos(ang - aa), ep2.y - al * Math.sin(ang - aa),
+      { roughness: 0.7, stroke: '#94a3b8', strokeWidth: 1.5, seed: ei * 7 + 2 });
+    rc.line(ep2.x, ep2.y, ep2.x - al * Math.cos(ang + aa), ep2.y - al * Math.sin(ang + aa),
+      { roughness: 0.7, stroke: '#94a3b8', strokeWidth: 1.5, seed: ei * 7 + 3 });
+  });
+
+  // ── Draw nodes (over edges) ───────────────────────────────────────────────
+  nodes.forEach((n, ni) => {
+    const p = pos[n.id];
+    const d = dims[n.id];
+    const s = d.style;
+    if (!p) return;
+
+    rc.rectangle(p.x, p.y, d.w, d.h, {
+      roughness: s.roughness, fill: s.fill, fillStyle: 'solid',
+      stroke: s.stroke, strokeWidth: s.strokeW, seed: ni * 13 + 5,
+    });
+
+    ctx.font = s.font;
+    ctx.fillStyle = s.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const ncx = p.x + d.w / 2;
+    const tH = d.lines.length * s.lineH;
+    const ty = p.y + (d.h - tH) / 2;
+    d.lines.forEach((line, li) => ctx.fillText(line, ncx, ty + li * s.lineH));
+  });
+}
+
+// ── In-card render wrapper ─────────────────────────────────────────────────
+// Always render at VIRT_W=1400 so layout never overlaps, then scale down
+// as a thumbnail for the card. The same offscreen is reused for the modal.
+const _VIRT_W = 1400;
+
+function renderExcalidrawDiagram(diagramData) {
+  // Render at virtual width and cache as offscreen (once per result)
+  if (!_modalOffscreen) {
+    const off = document.createElement('canvas');
+    _renderDiagram(diagramData, off, _VIRT_W);
+    _modalOffscreen = off;
+  }
+  // Draw scaled thumbnail into card canvas
+  const canvas = $('res-diagram-canvas');
+  const wrap = canvas.parentElement;
+  const W = Math.max((wrap.clientWidth || 0) - 40, 400);
+  const offW = parseFloat(_modalOffscreen.style.width)  || _VIRT_W;
+  const offH = parseFloat(_modalOffscreen.style.height) || 800;
+  const H = offH * W / offW;   // scale proportionally from actual canvas size
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#fffdf5';
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(_modalOffscreen, 0, 0, W, H);
+}
+
+// ── Diagram modal ──────────────────────────────────────────────────────────
+const _modal = { panX: 0, panY: 0, zoom: 1, dragging: false, lastX: 0, lastY: 0 };
+let _modalOffscreen = null;
+let _modalTouchState = null;
+
+function openDiagramModal() {
+  if (!_currentDiagramData) return;
+
+  $('diagram-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+
+  // Reuse the offscreen already rendered by renderExcalidrawDiagram;
+  // if somehow missing (e.g., modal opened before card rendered), create it.
+  if (!_modalOffscreen) {
+    const off = document.createElement('canvas');
+    _renderDiagram(_currentDiagramData, off, _VIRT_W);
+    _modalOffscreen = off;
+  }
+
+  // RAF: let the flex layout settle before reading dimensions
+  requestAnimationFrame(() => {
+    const body = $('diagram-modal-body');
+    const MW = body.clientWidth  || (window.innerWidth  - 48);
+    const MH = body.clientHeight || (window.innerHeight - 120);
+    const dpr = window.devicePixelRatio || 1;
+    const mc = $('diagram-modal-canvas');
+    mc.width  = Math.round(MW * dpr);
+    mc.height = Math.round(MH * dpr);
+    mc.style.width  = MW + 'px';
+    mc.style.height = MH + 'px';
+
+    const offW = parseFloat(_modalOffscreen.style.width)  || _VIRT_W;
+    const offH = parseFloat(_modalOffscreen.style.height) || (_modalOffscreen.height / dpr);
+
+    // Initial zoom: fit diagram inside modal with padding
+    _modal.zoom = Math.min((MW - 40) / offW, (MH - 40) / offH, 1);
+    _modal.panX = (MW - offW * _modal.zoom) / 2;
+    _modal.panY = 20;
+
+    _drawModal();
+    _attachModalEvents();
+  });
+}
+
+function closeDiagramModal() {
+  $('diagram-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _detachModalEvents();
+}
+
+function _drawModal() {
+  const mc = $('diagram-modal-canvas');
+  if (!mc || !_modalOffscreen) return;
+  const dpr = window.devicePixelRatio || 1;
+  const MW = parseInt(mc.style.width);
+  const MH = parseInt(mc.style.height);
+  const offW = parseFloat(_modalOffscreen.style.width)  || (_modalOffscreen.width  / dpr);
+  const offH = parseFloat(_modalOffscreen.style.height) || (_modalOffscreen.height / dpr);
+
+  const ctx = mc.getContext('2d');
+  ctx.clearRect(0, 0, mc.width, mc.height);
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  // Parchment background
+  ctx.fillStyle = '#faf9f4';
+  ctx.fillRect(0, 0, MW, MH);
+  // Draw offscreen diagram at current pan/zoom
+  ctx.drawImage(_modalOffscreen, _modal.panX, _modal.panY,
+                offW * _modal.zoom, offH * _modal.zoom);
+  ctx.restore();
+}
+
+// ── Modal event handlers ──────────────────────────────────────────────────
+function _onMD(e) {
+  _modal.dragging = true;
+  _modal.lastX = e.clientX; _modal.lastY = e.clientY;
+  $('diagram-modal-canvas').style.cursor = 'grabbing';
+}
+function _onMM(e) {
+  if (!_modal.dragging) return;
+  _modal.panX += e.clientX - _modal.lastX;
+  _modal.panY += e.clientY - _modal.lastY;
+  _modal.lastX = e.clientX; _modal.lastY = e.clientY;
+  _drawModal();
+}
+function _onMU() {
+  _modal.dragging = false;
+  const mc = $('diagram-modal-canvas');
+  if (mc) mc.style.cursor = 'grab';
+}
+function _onMW(e) {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.12 : (1 / 1.12);
+  const newZ = Math.max(0.15, Math.min(6, _modal.zoom * f));
+  const mc = $('diagram-modal-canvas');
+  const rect = mc.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  _modal.panX = mx - (mx - _modal.panX) * (newZ / _modal.zoom);
+  _modal.panY = my - (my - _modal.panY) * (newZ / _modal.zoom);
+  _modal.zoom = newZ;
+  _drawModal();
+}
+function _onTS(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    _modal.dragging = true;
+    _modal.lastX = e.touches[0].clientX; _modal.lastY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    _modal.dragging = false;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    _modalTouchState = { dist: Math.hypot(dx, dy), zoom0: _modal.zoom };
+  }
+}
+function _onTM(e) {
+  e.preventDefault();
+  if (e.touches.length === 1 && _modal.dragging) {
+    _modal.panX += e.touches[0].clientX - _modal.lastX;
+    _modal.panY += e.touches[0].clientY - _modal.lastY;
+    _modal.lastX = e.touches[0].clientX; _modal.lastY = e.touches[0].clientY;
+    _drawModal();
+  } else if (e.touches.length === 2 && _modalTouchState) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    _modal.zoom = Math.max(0.15, Math.min(6,
+      _modalTouchState.zoom0 * Math.hypot(dx, dy) / _modalTouchState.dist));
+    _drawModal();
+  }
+}
+function _onTE() { _modal.dragging = false; _modalTouchState = null; }
+
+function _attachModalEvents() {
+  const mc = $('diagram-modal-canvas');
+  if (!mc) return;
+  mc.addEventListener('mousedown', _onMD);
+  mc.addEventListener('mousemove', _onMM);
+  window.addEventListener('mouseup', _onMU);
+  mc.addEventListener('wheel', _onMW, { passive: false });
+  mc.addEventListener('touchstart', _onTS, { passive: false });
+  mc.addEventListener('touchmove',  _onTM, { passive: false });
+  mc.addEventListener('touchend',   _onTE);
+}
+function _detachModalEvents() {
+  const mc = $('diagram-modal-canvas');
+  if (!mc) return;
+  mc.removeEventListener('mousedown', _onMD);
+  mc.removeEventListener('mousemove', _onMM);
+  window.removeEventListener('mouseup', _onMU);
+  mc.removeEventListener('wheel', _onMW);
+  mc.removeEventListener('touchstart', _onTS);
+  mc.removeEventListener('touchmove',  _onTM);
+  mc.removeEventListener('touchend',   _onTE);
+}
+
+// Esc closes modal
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('diagram-modal').style.display !== 'none') closeDiagramModal();
+});
 
 // ── analysis ───────────────────────────────────────────────────────────────
 async function startAnalysis() {
@@ -542,19 +1085,10 @@ function renderResult(data) {
   // overview
   $('res-overview').textContent = data.overview;
 
-  // key points
-  const kp = $('res-keypoints');
-  kp.innerHTML = '';
-  (data.key_points || []).forEach(p => {
-    const li = document.createElement('li');
-    li.textContent = p;
-    kp.appendChild(li);
-  });
-
   // chapters
   const ch = $('res-chapters');
   ch.innerHTML = '';
-  (data.chapters || []).forEach((c, i) => {
+  (data.chapters || []).forEach((c) => {
     const ytLink = `https://www.youtube.com/watch?v=${data.video_id}&t=${Math.floor(c.start_seconds)}s`;
     const frameHtml = c.frame_url
       ? `<img src="${c.frame_url}" alt="${c.title}" loading="lazy" onerror="this.parentElement.innerHTML='<div class=no-frame>🖼</div>'">`
@@ -576,8 +1110,18 @@ function renderResult(data) {
       </div>`;
   });
 
+  // Show result section FIRST so clientWidth is available for canvas sizing
   $('result-section').style.display = 'block';
   $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Diagram: show card, then double-RAF so layout is fully settled before measuring
+  const dd = data.diagram_data;
+  if (dd && dd.nodes && dd.nodes.length) {
+    _currentDiagramData = dd;
+    _modalOffscreen = null;  // invalidate cached offscreen on new result
+    $('diagram-card').style.display = 'block';
+    requestAnimationFrame(() => requestAnimationFrame(() => renderExcalidrawDiagram(dd)));
+  }
 }
 
 // ── utilities ──────────────────────────────────────────────────────────────
@@ -594,10 +1138,13 @@ function resetForm() {
   $('url-input').value = '';
   $('progress-section').style.display = 'none';
   $('result-section').style.display = 'none';
+  $('diagram-card').style.display = 'none';
   $('error-box').style.display = 'none';
   $('analyze-btn').disabled = false;
   $('analyze-btn').innerHTML = '🚀 开始分析';
   _lastResult = null;
+  _currentDiagramData = null;
+  _modalOffscreen = null;
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 

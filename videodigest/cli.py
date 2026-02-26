@@ -14,8 +14,8 @@ from rich.rule import Rule
 from .url_parser import get_video_info
 from .downloader import download_subtitles, download_audio, download_video
 from .transcriber import parse_srt, transcribe_audio, merge_segments
-from .frame_extractor import extract_frames
-from .analyzer import analyze
+from .frame_extractor import extract_frames_at_timestamps
+from .analyzer import analyze, get_key_timestamps
 from .formatter import save_markdown, save_json
 
 console = Console()
@@ -116,7 +116,6 @@ def run(args: argparse.Namespace, api_key: str) -> Path:
         info = get_video_info(args.url)
         _ok(f"{info.title} [{info.duration_str}] — {info.channel}")
 
-        # Determine output directory
         out_dir = Path(args.output) if args.output else Path.cwd() / info.video_id
         out_dir.mkdir(parents=True, exist_ok=True)
 
@@ -139,6 +138,9 @@ def run(args: argparse.Namespace, api_key: str) -> Path:
             _step(f"Transcribing with Whisper [{args.whisper_model}]… (this may take a while)")
             segments = transcribe_audio(audio_path, model_size=args.whisper_model)
             _ok(f"Transcribed {len(segments)} segments")
+            # Clean up audio immediately — no longer needed
+            if not args.keep_temp:
+                shutil.rmtree(work_dir / "audio", ignore_errors=True)
 
         if not segments:
             _err("Could not obtain any transcript. Aborting.")
@@ -150,16 +152,31 @@ def run(args: argparse.Namespace, api_key: str) -> Path:
         # ── Step 3: extract key frames ────────────────────────────────────────
         frames = []
 
-        if not args.no_frames:
-            _step("Downloading video for frame extraction…")
+        if not args.no_frames and args.max_frames > 0:
             try:
-                video_path = download_video(info, work_dir / "video")
-                _ok(f"Video saved: {video_path.name} ({video_path.stat().st_size // (1024*1024)} MB)")
+                _step("Identifying key moments from transcript (Claude first pass)…")
+                key_timestamps = get_key_timestamps(
+                    video_title=info.title,
+                    segments=merged,
+                    api_key=api_key,
+                    n_moments=args.max_frames,
+                )
+                _ok(f"Found {len(key_timestamps)} key moments")
 
-                _step(f"Extracting up to {args.max_frames} key frames…")
-                frames_dir = work_dir / "frames"
-                frames = extract_frames(video_path, merged, frames_dir, max_frames=args.max_frames)
-                _ok(f"Extracted {len(frames)} unique frames")
+                if key_timestamps:
+                    _step("Downloading video for frame extraction…")
+                    video_path = download_video(info, work_dir / "video")
+                    _ok(f"Video saved: {video_path.name} ({video_path.stat().st_size // (1024*1024)} MB)")
+
+                    _step(f"Extracting frames at {len(key_timestamps)} key moments…")
+                    frames_dir = work_dir / "frames"
+                    frames = extract_frames_at_timestamps(video_path, key_timestamps, frames_dir)
+                    _ok(f"Extracted {len(frames)} unique frames")
+
+                    # Clean up video immediately after frame extraction
+                    if not args.keep_temp:
+                        shutil.rmtree(work_dir / "video", ignore_errors=True)
+
             except (EnvironmentError, OSError) as e:
                 _warn(f"Frame extraction skipped: {e}")
         else:
@@ -174,7 +191,7 @@ def run(args: argparse.Namespace, api_key: str) -> Path:
             api_key=api_key,
             output_language=args.lang,
         )
-        _ok(f"Analysis complete — {len(summary.chapters)} chapters, {len(summary.key_points)} key points")
+        _ok(f"Analysis complete — {len(summary.chapters)} chapters")
 
         # ── Step 5: save output ───────────────────────────────────────────────
         _step("Writing output files…")
@@ -203,7 +220,6 @@ def main() -> None:
     parser = _build_parser()
     args = parser.parse_args()
 
-    # Resolve API key
     api_key = args.api_key or os.environ.get("ANTHROPIC_API_KEY", "")
     if not api_key:
         console.print(

@@ -66,10 +66,10 @@ def download_audio(video_info: VideoInfo, output_dir: Path) -> Path:
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
-        # "18" is a combined 360p mp4 (audio+video) that works when YouTube
-        # forces SABR streaming and pure audio streams are unavailable.
-        "format": "bestaudio/18/best",
-        # Use Android client to bypass SABR streaming restrictions
+        # bestaudio: audio-only DASH (may fail with SABR)
+        # 18/22/17: progressive mp4 (no SABR, widely available)
+        # best: last resort combined stream
+        "format": "bestaudio/18/22/17/best",
         "extractor_args": {"youtube": {"player_client": ["android"]}},
         "postprocessors": [
             {
@@ -79,7 +79,7 @@ def download_audio(video_info: VideoInfo, output_dir: Path) -> Path:
             }
         ],
         "outtmpl": str(output_dir / f"{video_info.video_id}.%(ext)s"),
-        **_COOKIES_OPTS,
+        # No cookies: android client does not support cookies and will be skipped if present
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -105,17 +105,15 @@ def download_video(
         "no_warnings": True,
         # Prefer a single mp4 file; fall back to merging best streams
         "format": (
-            f"bestvideo[height<={max_height}][ext=mp4]"
-            f"+bestaudio[ext=m4a]"
+            f"bestvideo[height<={max_height}][ext=mp4]+bestaudio[ext=m4a]"
             f"/best[height<={max_height}][ext=mp4]"
             f"/best[height<={max_height}]"
-            f"/18"
+            f"/best"
         ),
-        # Use Android client to bypass SABR streaming restrictions
         "extractor_args": {"youtube": {"player_client": ["android"]}},
         "merge_output_format": "mp4",
         "outtmpl": str(output_dir / f"{video_info.video_id}.%(ext)s"),
-        **_COOKIES_OPTS,
+        # No cookies: android client does not support cookies and will be skipped if present
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

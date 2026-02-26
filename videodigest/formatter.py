@@ -5,7 +5,7 @@ import shutil
 from pathlib import Path
 from typing import Optional
 
-from .analyzer import Summary, Chapter
+from .analyzer import Summary
 from .frame_extractor import Frame
 
 
@@ -67,19 +67,11 @@ def _render_markdown(
     lines.append(f"{summary.overview}\n")
     lines.append("---\n")
 
-    # ── key points ────────────────────────────────────────────────────────────
-    lines.append("## Key Points\n")
-    for point in summary.key_points:
-        lines.append(f"- {point}")
-    lines.append("")
-    lines.append("---\n")
-
     # ── chapters ──────────────────────────────────────────────────────────────
     lines.append("## Chapters\n")
     used_frame_paths = set()
 
     for chapter in summary.chapters:
-        # Chapter heading with YouTube deep link
         yt_link = _youtube_url(video_id, chapter.start_time)
         ts = chapter.timestamp_str
         lines.append(f"### [{chapter.title}]({yt_link}) {ts}\n")
@@ -94,7 +86,7 @@ def _render_markdown(
 
         lines.append(f"{chapter.summary}\n")
 
-    # ── remaining frames (not tied to any chapter) ────────────────────────────
+    # ── remaining frames ──────────────────────────────────────────────────────
     leftover = [f for f in summary.frames if str(f.path) not in used_frame_paths]
     if leftover:
         lines.append("---\n")
@@ -117,21 +109,7 @@ def save_markdown(
     channel: str = "",
     duration_str: str = "",
 ) -> Path:
-    """Render summary to a Markdown file with embedded screenshot references.
-
-    Frame images are copied into an adjacent `frames/` sub-directory so the
-    Markdown file is portable (the whole output directory can be moved together).
-
-    Args:
-        summary:      Summary object from M6.
-        output_path:  Destination .md file path.
-        video_id:     YouTube video ID for generating watch links.
-        channel:      Channel name for the header.
-        duration_str: Human-readable duration (e.g. "12:34").
-
-    Returns:
-        Path to the written .md file.
-    """
+    """Render summary to a Markdown file with embedded screenshot references."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -150,15 +128,7 @@ def save_markdown(
 
 
 def save_json(summary: Summary, output_path: Path) -> Path:
-    """Export summary to a JSON file.
-
-    Args:
-        summary:     Summary object from M6.
-        output_path: Destination .json file path.
-
-    Returns:
-        Path to the written .json file.
-    """
+    """Export summary to a JSON file."""
     output_path = Path(output_path)
     output_path.parent.mkdir(parents=True, exist_ok=True)
 

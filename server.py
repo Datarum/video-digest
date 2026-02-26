@@ -77,6 +77,8 @@ def _run_pipeline(
                  message="无字幕，正在下载音频并用 Whisper 转录…")
             audio = download_audio(info, work_dir / "audio")
             segments = transcribe_audio(audio, model_size="base")
+            # Clean up audio immediately after transcription — no longer needed
+            shutil.rmtree(work_dir / "audio", ignore_errors=True)
             emit("step", step="transcript", status="done",
                  message=f"Whisper 已转录 {len(segments)} 段")
 
@@ -85,15 +87,32 @@ def _run_pipeline(
         # ── Step 3: key frames ────────────────────────────────────────────────
         frames = []
 
-        if not no_frames:
-            emit("step", step="frames", status="active", message="正在下载视频并提取关键帧…")
+        if not no_frames and max_frames > 0:
+            emit("step", step="frames", status="active", message="正在分析视频结构，识别关键时刻…")
             try:
+                from videodigest.analyzer import get_key_timestamps
                 from videodigest.downloader import download_video
-                from videodigest.frame_extractor import extract_frames
-                video_path = download_video(info, work_dir / "video")
-                frames = extract_frames(
-                    video_path, merged, work_dir / "frames", max_frames=max_frames
+                from videodigest.frame_extractor import extract_frames_at_timestamps
+
+                # First pass: ask Claude to identify key timestamps from transcript
+                key_timestamps = get_key_timestamps(
+                    video_title=info.title,
+                    segments=merged,
+                    api_key=api_key,
+                    n_moments=max_frames,
                 )
+
+                if key_timestamps:
+                    emit("step", step="frames", status="active",
+                         message=f"已定位 {len(key_timestamps)} 个关键时刻，正在下载视频…")
+                    video_path = download_video(info, work_dir / "video")
+
+                    frames = extract_frames_at_timestamps(
+                        video_path, key_timestamps, work_dir / "frames"
+                    )
+                    # Clean up video immediately after frame extraction
+                    shutil.rmtree(work_dir / "video", ignore_errors=True)
+
                 emit("step", step="frames", status="done",
                      message=f"已提取 {len(frames)} 张关键帧")
             except (EnvironmentError, OSError) as e:
@@ -104,7 +123,7 @@ def _run_pipeline(
 
         # ── Step 4: AI analysis ───────────────────────────────────────────────
         emit("step", step="analyze", status="active",
-             message=f"正在用 Claude 分析（语言: {lang}）…")
+             message=f"正在用 Claude 深度分析（语言: {lang}）…")
         from videodigest.analyzer import analyze
         summary = analyze(
             video_title=info.title,
@@ -114,7 +133,7 @@ def _run_pipeline(
             output_language=lang,
         )
         emit("step", step="analyze", status="done",
-             message=f"分析完成 — {len(summary.chapters)} 章节 · {len(summary.key_points)} 要点")
+             message=f"分析完成 — {len(summary.chapters)} 章节")
 
         # ── Step 5: save output ───────────────────────────────────────────────
         emit("step", step="output", status="active", message="正在保存报告…")
