@@ -1,0 +1,1541 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>VideoDigest — YouTube 视频总结</title>
+<!-- Caveat: handwriting font for diagram nodes -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;600;700&display=swap" rel="stylesheet">
+<!-- rough.js — Excalidraw-style hand-drawn rendering -->
+<script src="https://cdn.jsdelivr.net/npm/roughjs@4/bundled/rough.js"></script>
+<!-- html2canvas — full-page screenshot -->
+<script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
+<style>
+:root {
+  --bg: #0d0d0d;
+  --surface: #141414;
+  --primary: #e07a4f;
+  --primary-dark: #c96a3f;
+  --primary-light: rgba(224,122,79,0.12);
+  --success: #6db88a;
+  --success-light: rgba(109,184,138,0.10);
+  --warning: #d4a84b;
+  --warning-light: rgba(212,168,75,0.10);
+  --error: #e05c5c;
+  --error-light: rgba(224,92,92,0.10);
+  --text: #f0ede8;
+  --text-muted: #777;
+  --border: rgba(255,255,255,0.10);
+  --radius: 0px;
+  --shadow: none;
+  --shadow-lg: none;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+}
+
+/* ── layout ─────────────────────────────────────────────────────────────── */
+.container { max-width: none; margin: 0; padding: 0; }
+
+/* ── header ─────────────────────────────────────────────────────────────── */
+header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 22px 60px;
+  border-bottom: 1px solid var(--border);
+}
+.header-left { display: flex; align-items: center; gap: 12px; }
+header .logo {
+  width: 32px; height: 32px;
+  background: var(--primary);
+  border-radius: 6px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px;
+}
+header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+.header-badge {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--primary); padding: 3px 8px;
+  border: 1px solid var(--primary);
+}
+
+/* ── hero input section ─────────────────────────────────────────────────── */
+.hero {
+  min-height: calc(100vh - 73px);
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 80px 60px;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.hero::after {
+  content: 'VD';
+  position: absolute;
+  right: -20px; bottom: -60px;
+  font-size: 38vw; font-weight: 900;
+  line-height: 1; letter-spacing: -0.05em;
+  color: rgba(255,255,255,0.018);
+  pointer-events: none; user-select: none;
+}
+.hero-eyebrow {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--primary);
+  margin-bottom: 28px;
+}
+.hero-title {
+  font-size: clamp(64px, 9.5vw, 140px);
+  font-weight: 900;
+  line-height: 0.92;
+  letter-spacing: -0.035em;
+  color: var(--text);
+  margin-bottom: 28px;
+}
+.hero-sub {
+  font-size: 17px; font-weight: 300;
+  color: var(--text-muted);
+  max-width: 440px; line-height: 1.65;
+  margin-bottom: 64px;
+}
+.hero-form { width: 100%; max-width: 680px; position: relative; z-index: 1; }
+
+/* URL input — underline style */
+.hero-url-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 0;
+  border-bottom: 1.5px solid rgba(255,255,255,0.2);
+  padding-bottom: 2px;
+  margin-bottom: 32px;
+  transition: border-color .2s;
+}
+.hero-url-row:focus-within { border-bottom-color: var(--primary); }
+.hero-url-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  font-size: 20px; font-weight: 300;
+  color: var(--text); padding: 14px 0;
+  outline: none;
+}
+.hero-url-input::placeholder { color: var(--text-muted); }
+.hero-url-clear {
+  background: none; border: none; cursor: pointer;
+  color: var(--text-muted); font-size: 18px; padding: 8px;
+  opacity: 0; transition: opacity .15s;
+  line-height: 1;
+}
+.hero-url-row:focus-within .hero-url-clear { opacity: 1; }
+
+/* settings row */
+.hero-settings {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+.hero-settings label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text-muted); margin-bottom: 0;
+  display: flex; flex-direction: column; gap: 6px;
+}
+.hero-settings select {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px; font-size: 13px;
+  border-radius: 0;
+  cursor: pointer;
+  outline: none;
+  min-width: 120px;
+  transition: border-color .15s;
+}
+.hero-settings select:focus { border-color: var(--primary); }
+.hero-settings select option { background: #1e1e1e; color: var(--text); }
+
+.hero-key-group {
+  display: flex; flex-direction: column; gap: 6px;
+  flex: 1; min-width: 200px;
+}
+.hero-key-group label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text-muted);
+}
+.hero-key-input {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text);
+  padding: 8px 12px; font-size: 13px;
+  outline: none; width: 100%;
+  transition: border-color .15s;
+}
+.hero-key-input:focus { border-color: var(--primary); }
+
+/* analyze button */
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+  border: none;
+  border-radius: 0;
+  padding: 12px 36px;
+  font-size: 12px; font-weight: 800;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  cursor: pointer;
+  transition: background .15s, opacity .15s;
+  display: inline-flex; align-items: center; gap: 8px;
+  white-space: nowrap;
+}
+.btn-primary:hover { background: var(--primary-dark); }
+.btn-primary:active { opacity: .85; }
+.btn-primary:disabled { opacity: .45; cursor: not-allowed; }
+
+/* ── progress section ───────────────────────────────────────────────────── */
+#progress-section {
+  display: none;
+  padding: 72px 60px;
+  border-bottom: 1px solid var(--border);
+}
+
+.progress-header {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--primary); margin-bottom: 48px;
+}
+
+.steps { display: flex; flex-direction: column; gap: 0; }
+
+.step {
+  display: flex;
+  align-items: flex-start;
+  gap: 20px;
+  padding: 20px 0;
+  border-bottom: 1px solid var(--border);
+  opacity: .3;
+  transition: opacity .25s;
+}
+.step:last-child { border-bottom: none; }
+.step.active, .step.done, .step.warn, .step.skip, .step.error { opacity: 1; }
+
+.step-icon {
+  width: 28px; height: 28px;
+  border: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  flex-shrink: 0;
+  transition: background .2s, border-color .2s;
+}
+.step.active .step-icon  { border-color: var(--primary); color: var(--primary); animation: pulse 1.4s infinite; }
+.step.done  .step-icon   { border-color: var(--success); color: var(--success); }
+.step.warn  .step-icon   { border-color: var(--warning); color: var(--warning); }
+.step.skip  .step-icon   { border-color: var(--border);  color: var(--text-muted); }
+.step.error .step-icon   { border-color: var(--error);   color: var(--error); }
+
+@keyframes pulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(224,122,79,.4); }
+  50%       { box-shadow: 0 0 0 6px rgba(224,122,79,0); }
+}
+
+.step-body { flex: 1; min-width: 0; }
+.step-name { font-size: 14px; font-weight: 600; color: var(--text); }
+.step-msg  { font-size: 12px; color: var(--text-muted); margin-top: 3px; word-break: break-word; font-weight: 300; }
+
+/* error box */
+.error-box {
+  display: none;
+  border: 1px solid var(--error);
+  background: var(--error-light);
+  padding: 16px 20px;
+  font-size: 14px;
+  color: var(--error);
+  margin-top: 16px;
+}
+.error-box pre { font-size: 11px; margin-top: 8px; white-space: pre-wrap; color: var(--text-muted); }
+
+/* ── result section ─────────────────────────────────────────────────────── */
+#result-section { display: none; }
+
+/* Title band */
+.res-title-band {
+  padding: 48px 60px 40px;
+  border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; align-items: flex-start;
+}
+.res-title-actions {
+  display: flex; gap: 10px; flex-wrap: wrap;
+  margin-top: 28px;
+}
+.res-save-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 8px 20px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.res-save-btn:hover { border-color: var(--primary); color: var(--primary); }
+.res-save-btn:disabled { opacity: 0.45; cursor: default; }
+.res-meta-line {
+  font-size: 11px; font-weight: 400;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+  margin-bottom: 16px;
+  display: flex; gap: 20px; flex-wrap: wrap;
+  align-items: center;
+}
+.res-meta-line a { color: var(--primary); text-decoration: none; }
+.res-meta-line a:hover { text-decoration: underline; }
+.res-video-title {
+  font-size: clamp(48px, 6.5vw, 100px);
+  font-weight: 900;
+  line-height: 0.95;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  word-break: break-word;
+}
+
+/* Overview + thumb dual column */
+.res-overview-band {
+  display: grid;
+  grid-template-columns: 3fr 1.6fr;
+  border-bottom: 1px solid var(--border);
+  position: relative;
+  overflow: hidden;
+}
+.res-overview-col {
+  padding: 56px 60px;
+  border-right: 1px solid var(--border);
+}
+.res-overview-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--primary); margin-bottom: 20px;
+}
+.res-overview-text {
+  font-size: 19px; font-weight: 300;
+  line-height: 1.85; color: var(--text);
+}
+.res-thumb-col {
+  padding: 0;
+  display: flex; flex-direction: column;
+}
+.res-thumb-col img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  min-height: 200px;
+}
+
+/* ── 幕布 (Overview Cover) ────────────────────────────────────────────────── */
+.curtain {
+  position: absolute; top: 0; bottom: 0;
+  width: 50%;
+  background: var(--bg);
+  z-index: 10;
+  transition: transform 0.65s cubic-bezier(0.77, 0, 0.18, 1);
+  will-change: transform;
+  cursor: pointer;
+}
+.curtain-left  { left: 0; }
+.curtain-right { right: 0; }
+.res-overview-band.curtains-open .curtain-left  { transform: translateX(-100%); }
+.res-overview-band.curtains-open .curtain-right { transform: translateX(100%); }
+.res-overview-band.curtains-open .curtain-cta   { opacity: 0; pointer-events: none; }
+
+.curtain-cta {
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  z-index: 11;
+  display: flex; align-items: center; justify-content: center; gap: 16px;
+  cursor: pointer;
+  transition: opacity 0.3s;
+  background: linear-gradient(
+    to right,
+    transparent calc(50% - 0.5px),
+    rgba(255,255,255,0.12) calc(50% - 0.5px),
+    rgba(255,255,255,0.12) calc(50% + 0.5px),
+    transparent calc(50% + 0.5px)
+  );
+}
+.curtain-cta-label {
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.35em; text-transform: uppercase;
+  color: var(--primary);
+}
+.curtain-cta-arrow {
+  font-size: 16px; color: var(--primary);
+  display: inline-block;
+  animation: pulseX 2s ease-in-out infinite;
+}
+@keyframes pulseX {
+  0%, 100% { transform: translateX(0); }
+  50%       { transform: translateX(6px); }
+}
+
+/* ── flip stage (3D 翻页容器) ───────────────────────────────────────────────── */
+.flip-stage {
+  perspective: 1400px;
+  display: none;
+}
+#diagram-card.flipping {
+  transform: rotateX(-90deg);
+}
+
+/* ── chapters-reveal 入场动画 ────────────────────────────────────────────────── */
+#chapters-reveal.entering {
+  animation: slideReveal 0.5s ease forwards;
+}
+@keyframes slideReveal {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Chapters label */
+.res-chapters-label {
+  padding: 24px 60px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--text-muted);
+  border-bottom: 1px solid var(--border);
+  display: flex; align-items: center; gap: 20px;
+}
+.res-chapters-label::after {
+  content: '';
+  flex: 1; height: 1px;
+  background: var(--border);
+}
+
+/* Chapter item — alternating layout */
+.mag-chapter {
+  display: grid;
+  grid-template-columns: 55fr 45fr;
+  border-bottom: 1px solid var(--border);
+  min-height: 340px;
+}
+.mag-chapter:nth-child(even) {
+  grid-template-columns: 45fr 55fr;
+}
+/* even: text first, image second */
+.mag-chapter:nth-child(even) .mag-chapter-body { order: 1; border-right: 1px solid var(--border); border-left: none; }
+.mag-chapter:nth-child(even) .mag-chapter-img  { order: 2; }
+
+.mag-chapter-img {
+  overflow: hidden;
+  background: var(--surface);
+  position: relative;
+}
+.mag-chapter-img img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+  transition: transform .6s ease;
+}
+.mag-chapter-img:hover img { transform: scale(1.03); }
+.mag-chapter-no-img {
+  width: 100%; height: 100%;
+  min-height: 280px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 40px; color: rgba(255,255,255,0.06);
+}
+
+.mag-chapter-body {
+  padding: 48px 60px;
+  display: flex; flex-direction: column;
+  justify-content: center;
+  position: relative;
+  border-left: 1px solid var(--border);
+  overflow: hidden;
+}
+.mag-chapter-body::before {
+  content: attr(data-num);
+  position: absolute;
+  right: -10px; bottom: -30px;
+  font-size: clamp(80px, 12vw, 160px);
+  font-weight: 900; line-height: 1;
+  letter-spacing: -0.04em;
+  color: rgba(255,255,255,0.035);
+  pointer-events: none; user-select: none;
+  font-variant-numeric: tabular-nums;
+}
+.mag-chapter-ts {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.2em; text-transform: uppercase;
+  color: var(--primary); margin-bottom: 12px;
+}
+.mag-chapter-title {
+  font-size: clamp(20px, 2.4vw, 32px);
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.015em;
+  color: var(--text);
+  margin-bottom: 20px;
+}
+.mag-chapter-title a { color: inherit; text-decoration: none; }
+.mag-chapter-title a:hover { color: var(--primary); }
+.mag-chapter-summary {
+  font-size: 14px; font-weight: 300;
+  line-height: 1.8; color: var(--text-muted);
+}
+
+/* ── diagram cover ──────────────────────────────────────────────────────── */
+#diagram-card {
+  background: var(--bg);
+  border-bottom: 1px solid var(--border);
+  transform-origin: top center;
+  transition: transform 0.55s cubic-bezier(0.4, 0, 0.6, 1);
+  will-change: transform;
+}
+.cover-top-bar {
+  padding: 18px 60px;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.25em; text-transform: uppercase;
+  color: var(--text-muted);
+  display: flex; align-items: center; justify-content: space-between;
+  border-bottom: 1px solid var(--border);
+}
+.cover-canvas-wrap {
+  position: relative;
+  cursor: pointer;
+  line-height: 0;
+  overflow: hidden;
+}
+.cover-canvas-wrap:hover .cover-open-cta { opacity: 1; }
+#res-diagram-canvas { display: block; width: 100%; }
+
+/* diagram wrap — reused for compatibility, but no styling here */
+.diagram-wrap { line-height: 0; }
+
+/* gradient CTA at bottom of cover */
+.cover-open-cta {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  padding: 48px 60px 28px;
+  background: linear-gradient(to top, rgba(13,13,13,0.96) 40%, transparent 100%);
+  display: flex; align-items: flex-end; justify-content: space-between;
+  opacity: 0.72;
+  transition: opacity .25s;
+  pointer-events: none;
+}
+.cover-open-label {
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.3em; text-transform: uppercase;
+  color: var(--primary);
+}
+.cover-open-arrow {
+  font-size: 18px; color: var(--primary);
+  transition: transform .3s;
+  display: inline-block;
+}
+.cover-open-arrow.flipped { transform: rotate(180deg); }
+
+@keyframes bounceY {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(5px); }
+}
+.cover-open-arrow:not(.flipped) { animation: bounceY 2s ease-in-out infinite; }
+
+/* expand button */
+.btn-expand {
+  display: inline-flex; align-items: center; gap: 5px;
+  background: none;
+  border: 1px solid var(--border);
+  padding: 5px 14px;
+  font-size: 11px; font-weight: 700;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+}
+.btn-expand:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── action bar ─────────────────────────────────────────────────────────── */
+.mag-action-bar {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  padding: 36px 60px 56px;
+}
+.btn-outline {
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-muted);
+  padding: 10px 24px;
+  font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1em; text-transform: uppercase;
+  cursor: pointer;
+  transition: border-color .15s, color .15s;
+  display: inline-flex; align-items: center; gap: 7px;
+}
+.btn-outline:hover { border-color: var(--primary); color: var(--primary); }
+
+/* ── diagram modal ──────────────────────────────────────────────────────── */
+#diagram-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0,0,0,.7);
+}
+#diagram-modal-bg { position: absolute; inset: 0; }
+#diagram-modal-inner {
+  position: relative;
+  background: #0d0d0d;
+  width: calc(100vw - 48px);
+  max-width: 1240px;
+  height: calc(100vh - 64px);
+  max-height: 920px;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  box-shadow: 0 32px 100px rgba(0,0,0,.8);
+}
+#diagram-modal-hdr {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+  background: #141414;
+}
+#diagram-modal-hdr .modal-title { font-weight: 700; font-size: 13px; color: var(--text); letter-spacing: 0.08em; text-transform: uppercase; }
+#diagram-modal-hdr .modal-hint  { font-size: 11px; color: var(--text-muted); }
+.modal-close {
+  background: none; border: none; font-size: 18px; line-height: 1;
+  cursor: pointer; color: var(--text-muted); padding: 4px 8px;
+}
+.modal-close:hover { color: var(--text); }
+#diagram-modal-body {
+  flex: 1; min-height: 0; overflow: hidden; position: relative;
+}
+#diagram-modal-canvas { display: block; cursor: grab; touch-action: none; }
+#diagram-modal-canvas:active { cursor: grabbing; }
+#diagram-modal-footer {
+  padding: 6px 20px;
+  font-size: 10px; color: var(--text-muted);
+  background: #141414;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0; text-align: center;
+}
+
+/* ── misc ───────────────────────────────────────────────────────────────── */
+/* shared btn base */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  gap: 8px; cursor: pointer; border: none;
+  transition: opacity .15s, background .15s;
+}
+.btn:active { opacity: .8; }
+
+/* responsive */
+@media (max-width: 860px) {
+  header { padding: 18px 24px; }
+  .hero { padding: 60px 24px; min-height: auto; padding-top: 80px; padding-bottom: 80px; }
+  .hero::after { display: none; }
+  .hero-title { font-size: clamp(52px, 12vw, 80px); }
+  #progress-section { padding: 48px 24px; }
+  .res-title-band { padding: 36px 24px; }
+  .res-overview-band { grid-template-columns: 1fr; }
+  .res-overview-col { padding: 40px 24px; border-right: none; border-bottom: 1px solid var(--border); }
+  .res-thumb-col img { min-height: 220px; }
+  .res-chapters-label { padding: 20px 24px; }
+  .mag-chapter,
+  .mag-chapter:nth-child(even) { grid-template-columns: 1fr; min-height: auto; }
+  .mag-chapter-img { min-height: 220px; }
+  .mag-chapter:nth-child(even) .mag-chapter-body { order: 2; border-right: none; border-left: none; border-top: 1px solid var(--border); }
+  .mag-chapter:nth-child(even) .mag-chapter-img { order: 1; }
+  .mag-chapter-body { padding: 32px 24px; border-left: none; border-top: 1px solid var(--border); }
+  .cover-top-bar { padding: 16px 24px; }
+  .cover-open-cta { padding: 40px 24px 24px; }
+  .mag-action-bar { padding: 28px 24px 48px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+
+  <!-- header -->
+  <header>
+    <div class="header-left">
+      <div class="logo">🎬</div>
+      <h1>VideoDigest</h1>
+    </div>
+    <div class="header-badge">AI · Video Analysis</div>
+  </header>
+
+  <!-- hero / input -->
+  <section class="hero" id="hero-section">
+    <div class="hero-eyebrow">AI Video Analysis</div>
+    <h1 class="hero-title">Video<br>Digest</h1>
+    <p class="hero-sub">输入 YouTube 链接，AI 自动总结视频要点、提取章节结构与关键截图。</p>
+
+    <div class="hero-form">
+      <div class="hero-url-row">
+        <input id="url-input" class="hero-url-input" type="text"
+               placeholder="https://www.youtube.com/watch?v=..."
+               autocomplete="off" spellcheck="false">
+        <button class="hero-url-clear" onclick="$('url-input').value='';$('url-input').focus()" tabindex="-1">✕</button>
+      </div>
+
+      <div class="hero-settings">
+        <label>
+          输出语言
+          <select id="lang-select">
+            <option value="Chinese" selected>中文</option>
+            <option value="English">English</option>
+            <option value="Japanese">日本語</option>
+            <option value="Korean">한국어</option>
+          </select>
+        </label>
+        <label>
+          最大截图数
+          <select id="frames-select">
+            <option value="0">不截图（纯文字）</option>
+            <option value="6">6 张</option>
+            <option value="12" selected>12 张</option>
+            <option value="20">20 张</option>
+          </select>
+        </label>
+
+        {% if not server_has_key %}
+        <div class="hero-key-group" id="key-group">
+          <label>Anthropic API Key</label>
+          <input id="api-key-input" class="hero-key-input" type="password" placeholder="sk-ant-...">
+        </div>
+        {% endif %}
+
+        <button class="btn btn-primary" id="analyze-btn" onclick="startAnalysis()">
+          开始分析 →
+        </button>
+      </div>
+    </div>
+  </section>
+
+  <!-- progress -->
+  <div id="progress-section">
+    <div class="progress-header">处理进度</div>
+    <div class="steps">
+      <div class="step" id="step-fetch">
+        <div class="step-icon">01</div>
+        <div class="step-body">
+          <div class="step-name">获取视频信息</div>
+          <div class="step-msg" id="msg-fetch">—</div>
+        </div>
+      </div>
+      <div class="step" id="step-transcript">
+        <div class="step-icon">02</div>
+        <div class="step-body">
+          <div class="step-name">提取字幕 / 语音转录</div>
+          <div class="step-msg" id="msg-transcript">—</div>
+        </div>
+      </div>
+      <div class="step" id="step-frames">
+        <div class="step-icon">03</div>
+        <div class="step-body">
+          <div class="step-name">提取关键帧</div>
+          <div class="step-msg" id="msg-frames">—</div>
+        </div>
+      </div>
+      <div class="step" id="step-analyze">
+        <div class="step-icon">04</div>
+        <div class="step-body">
+          <div class="step-name">Claude AI 分析</div>
+          <div class="step-msg" id="msg-analyze">—</div>
+        </div>
+      </div>
+      <div class="step" id="step-output">
+        <div class="step-icon">05</div>
+        <div class="step-body">
+          <div class="step-name">保存报告</div>
+          <div class="step-msg" id="msg-output">—</div>
+        </div>
+      </div>
+    </div>
+    <div class="error-box" id="error-box">
+      <strong>出错了</strong>
+      <div id="error-msg"></div>
+      <pre id="error-detail" style="display:none"></pre>
+    </div>
+  </div>
+
+  <!-- result -->
+  <div id="result-section">
+
+    <!-- 超大标题 band -->
+    <div class="res-title-band">
+      <div class="res-meta-line" id="res-meta-line"></div>
+      <div class="res-video-title" id="res-title"></div>
+      <div class="res-title-actions">
+        <button class="res-save-btn" id="save-img-btn" onclick="savePageImage(this)">↓ 保存长图</button>
+      </div>
+    </div>
+
+    <!-- 概述 + 缩略图（幕布封面） -->
+    <div class="res-overview-band" id="overview-band">
+      <div class="res-overview-col">
+        <div class="res-overview-label">Overview</div>
+        <div class="res-overview-text" id="res-overview"></div>
+      </div>
+      <div class="res-thumb-col">
+        <img id="res-thumb" src="" alt="thumbnail">
+      </div>
+      <!-- 幕布遮罩 -->
+      <div class="curtain curtain-left"  onclick="openCurtain()"></div>
+      <div class="curtain curtain-right" onclick="openCurtain()"></div>
+      <!-- 幕布 CTA -->
+      <div class="curtain-cta" id="curtain-cta" onclick="openCurtain()">
+        <span class="curtain-cta-label">OPEN</span>
+        <span class="curtain-cta-arrow">→</span>
+      </div>
+    </div>
+
+    <!-- 核心结构图 — 内页（幕布打开后显示，点击 3D 翻页） -->
+    <div class="flip-stage" id="flip-stage">
+      <div id="diagram-card">
+        <div class="cover-top-bar">
+          <span>Core Structure</span>
+          <button class="btn-expand" onclick="openDiagramModal(); event.stopPropagation()">⛶ 展开浏览</button>
+        </div>
+        <div class="cover-canvas-wrap" onclick="openDiagramFlip()" title="点击翻开，查看章节">
+          <div class="diagram-wrap">
+            <canvas id="res-diagram-canvas"></canvas>
+          </div>
+          <div class="cover-open-cta">
+            <span class="cover-open-label">OPEN — CHAPTERS</span>
+            <span class="cover-open-arrow" id="cover-arrow">↓</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 章节（默认隐藏，点击封面后展开） -->
+    <div id="chapters-reveal" style="display:none">
+      <div class="res-chapters-label">Chapters</div>
+      <div id="res-chapters"></div>
+      <div class="mag-action-bar">
+        <button class="btn btn-outline" onclick="downloadJSON()">⬇ 下载 JSON</button>
+        <button class="btn btn-outline" onclick="resetForm()">← 分析新视频</button>
+      </div>
+    </div>
+
+  </div>
+
+</div>
+
+<!-- core structure diagram — full-screen modal with pan/zoom -->
+<div id="diagram-modal">
+  <div id="diagram-modal-bg" onclick="closeDiagramModal()"></div>
+  <div id="diagram-modal-inner">
+    <div id="diagram-modal-hdr">
+      <span class="modal-title">核心结构</span>
+      <div style="display:flex;align-items:center;gap:14px">
+        <span class="modal-hint">拖动平移 · 滚轮缩放 · Esc 关闭</span>
+        <button class="modal-close" onclick="closeDiagramModal()">✕</button>
+      </div>
+    </div>
+    <div id="diagram-modal-body">
+      <canvas id="diagram-modal-canvas"></canvas>
+    </div>
+    <div id="diagram-modal-footer">双指捏合缩放（触屏）</div>
+  </div>
+</div>
+
+<script>
+// ── state ──────────────────────────────────────────────────────────────────
+const SERVER_HAS_KEY = {{ server_has_key | tojson }};
+let _lastResult = null;
+let _currentDiagramData = null;
+
+// ── helpers ────────────────────────────────────────────────────────────────
+function $(id) { return document.getElementById(id); }
+
+function setStep(name, status, message) {
+  const el = $(`step-${name}`);
+  if (!el) return;
+  el.className = `step ${status}`;
+  const stepNums = { fetch: '01', transcript: '02', frames: '03', analyze: '04', output: '05' };
+  const icons = { active: '…', done: '✓', warn: '!', skip: '—', error: '✗' };
+  el.querySelector('.step-icon').textContent = icons[status] || stepNums[name] || '○';
+  if (message) $(`msg-${name}`).textContent = message;
+}
+
+function showError(msg, detail) {
+  const box = $('error-box');
+  box.style.display = 'block';
+  $('error-msg').textContent = msg;
+  if (detail) {
+    $('error-detail').textContent = detail;
+    $('error-detail').style.display = 'block';
+  }
+  $('analyze-btn').disabled = false;
+  $('analyze-btn').textContent = '重试 →';
+}
+
+// ── Diagram core renderer ──────────────────────────────────────────────────
+function _renderDiagram(diagramData, canvas, drawW) {
+  const nodes = diagramData.nodes || [];
+  const edges = diagramData.edges || [];
+  if (!nodes.length) return;
+
+  const dpr = window.devicePixelRatio || 1;
+  const W = drawW;
+
+  const iMaxW = Math.min(W * 0.27, 195);
+  const STYLES = {
+    core: {
+      font: 'bold 17px Caveat, sans-serif', lineH: 23, padX: 20, padY: 15,
+      minW: 200, maxW: Math.min(W * 0.44, 300),
+      fill: 'rgba(224,122,79,0.18)', stroke: '#e07a4f', strokeW: 2.5, roughness: 1.5, textColor: '#f0c4a8',
+    },
+    phase: {
+      font: '700 15px Caveat, sans-serif', lineH: 20, padX: 14, padY: 11,
+      minW: 115, maxW: Math.min(W * 0.24, 175),
+      fill: 'rgba(240,237,232,0.07)', stroke: 'rgba(240,237,232,0.5)', strokeW: 1.8, roughness: 1.3, textColor: '#d0cdc8',
+    },
+    insight: {
+      font: '14px Caveat, sans-serif', lineH: 18, padX: 12, padY: 10,
+      minW: 120, maxW: iMaxW,
+      fill: 'rgba(240,237,232,0.03)', stroke: 'rgba(240,237,232,0.22)', strokeW: 1.3, roughness: 1.2, textColor: '#888',
+    },
+  };
+
+  const _mc = document.createElement('canvas').getContext('2d');
+
+  function parseFontSize(fontStr) {
+    const m = fontStr.match(/(\d+(?:\.\d+)?)px/);
+    return m ? +m[1] : 16;
+  }
+
+  function textW(str, font) {
+    _mc.font = font;
+    const measured = _mc.measureText(str).width;
+    const fs = parseFontSize(font);
+    const cjk = (str.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\uff00-\uffef]/g) || []).length;
+    const minW = cjk * fs * 0.97 + (str.length - cjk) * fs * 0.56;
+    return Math.max(measured, minW);
+  }
+
+  function wrapText(text, font, maxW) {
+    const parts = text.split(' ');
+    const lines = [];
+    let cur = '';
+    for (const p of parts) {
+      const test = cur ? cur + ' ' + p : p;
+      if (textW(test, font) > maxW && cur) { lines.push(cur); cur = p; }
+      else cur = test;
+    }
+    if (cur) lines.push(cur);
+    const out = [];
+    for (const ln of lines) {
+      if (textW(ln, font) <= maxW * 1.05) { out.push(ln); continue; }
+      let seg = '';
+      for (const ch of ln) {
+        if (textW(seg + ch, font) > maxW && seg) { out.push(seg); seg = ch; }
+        else seg += ch;
+      }
+      if (seg) out.push(seg);
+    }
+    return out.length ? out : [text.slice(0, 10) + '…'];
+  }
+
+  const children = {};
+  nodes.forEach(n => children[n.id] = []);
+  edges.forEach(e => { if (children[e.from] !== undefined) children[e.from].push(e.to); });
+  const root = nodes.find(n => n.type === 'core');
+  if (!root) return;
+
+  const dims = {};
+  nodes.forEach(n => {
+    const s = STYLES[n.type] || STYLES.insight;
+    const maxTW = s.maxW - s.padX * 2;
+    const lines = wrapText(n.label, s.font, maxTW);
+    const measuredW = lines.reduce((m, l) => Math.max(m, textW(l, s.font)), 0);
+    const w = Math.max(s.minW, Math.min(s.maxW, measuredW + s.padX * 2 + 6));
+    const h = s.padY * 2 + lines.length * s.lineH;
+    dims[n.id] = { w, h, lines, style: s };
+  });
+
+  const phaseIds = children[root.id] || [];
+  const pCount = Math.max(phaseIds.length, 1);
+  const R1 = Math.min(W * 0.165, 165);
+  const R2 = Math.min(W * 0.36, 300);
+  const cX = W / 2;
+  const cY = R2 + (dims[root.id]?.h || 60) / 2 + 30;
+  const pos = {};
+  const rd = dims[root.id];
+  pos[root.id] = { x: cX - rd.w / 2, y: cY - rd.h / 2 };
+
+  function exitPt(p, d, tx, ty) {
+    const ncx = p.x + d.w / 2, ncy = p.y + d.h / 2;
+    const dx = tx - ncx, dy = ty - ncy;
+    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return { x: ncx, y: ncy };
+    const hw = d.w / 2 + 1, hh = d.h / 2 + 1;
+    const tx_ = dx ? Math.abs(hw / dx) : Infinity;
+    const ty_ = dy ? Math.abs(hh / dy) : Infinity;
+    const t = Math.min(tx_, ty_);
+    return { x: ncx + dx * t, y: ncy + dy * t };
+  }
+
+  function radHalf(d, cosA, sinA) {
+    return d.w / 2 * cosA + d.h / 2 * sinA;
+  }
+
+  phaseIds.forEach((pid, pi) => {
+    const pAngle = -Math.PI / 2 + (2 * Math.PI * pi / pCount);
+    const cosA = Math.abs(Math.cos(pAngle));
+    const sinA = Math.abs(Math.sin(pAngle));
+    const rdx  = Math.cos(pAngle);
+    const rdy  = Math.sin(pAngle);
+    const pd   = dims[pid];
+    const pCX  = cX + R1 * rdx;
+    const pCY  = cY + R1 * rdy;
+    pos[pid] = { x: pCX - pd.w / 2, y: pCY - pd.h / 2 };
+
+    const iIds = children[pid] || [];
+    if (!iIds.length) return;
+    let curR = radHalf(pd, cosA, sinA) + 14;
+    iIds.forEach((iid) => {
+      const id_ = dims[iid];
+      const rh = radHalf(id_, cosA, sinA);
+      const centerR = curR + rh;
+      pos[iid] = {
+        x: pCX + rdx * centerR - id_.w / 2,
+        y: pCY + rdy * centerR - id_.h / 2,
+      };
+      curR = centerR + rh + 16;
+    });
+  });
+
+  const PAD = 24;
+  let minX = Infinity, maxX = -Infinity;
+  let minY = Infinity, maxY = -Infinity;
+  nodes.forEach(n => {
+    const p = pos[n.id]; if (!p) return;
+    const d = dims[n.id];
+    if (p.x       < minX) minX = p.x;
+    if (p.x + d.w > maxX) maxX = p.x + d.w;
+    if (p.y       < minY) minY = p.y;
+    if (p.y + d.h > maxY) maxY = p.y + d.h;
+  });
+  const shiftX = minX < PAD ? PAD - minX : 0;
+  const shiftY = minY < PAD ? PAD - minY : 0;
+  if (shiftX > 0 || shiftY > 0) {
+    Object.keys(pos).forEach(id => {
+      if (!pos[id]) return;
+      pos[id].x += shiftX;
+      pos[id].y += shiftY;
+    });
+  }
+  const actualW = maxX + shiftX + PAD;
+  const canvasH = maxY + shiftY + PAD;
+
+  canvas.width  = Math.round(actualW * dpr);
+  canvas.height = Math.round(canvasH * dpr);
+  canvas.style.width  = actualW + 'px';
+  canvas.style.height = canvasH + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  const rc = rough.canvas(canvas);
+
+  edges.forEach((edge, ei) => {
+    const fp = pos[edge.from], tp = pos[edge.to];
+    if (!fp || !tp) return;
+    const fd = dims[edge.from], td = dims[edge.to];
+    const tcX = tp.x + td.w / 2, tcY = tp.y + td.h / 2;
+    const fcX = fp.x + fd.w / 2, fcY = fp.y + fd.h / 2;
+    const ep1 = exitPt(fp, fd, tcX, tcY);
+    const ep2 = exitPt(tp, td, fcX, fcY);
+    rc.line(ep1.x, ep1.y, ep2.x, ep2.y, {
+      roughness: 1.2, stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1.5, seed: ei * 7 + 1,
+    });
+    const ang = Math.atan2(ep2.y - ep1.y, ep2.x - ep1.x);
+    const al = 9, aa = 0.42;
+    rc.line(ep2.x, ep2.y, ep2.x - al * Math.cos(ang - aa), ep2.y - al * Math.sin(ang - aa),
+      { roughness: 0.7, stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1.3, seed: ei * 7 + 2 });
+    rc.line(ep2.x, ep2.y, ep2.x - al * Math.cos(ang + aa), ep2.y - al * Math.sin(ang + aa),
+      { roughness: 0.7, stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1.3, seed: ei * 7 + 3 });
+  });
+
+  nodes.forEach((n, ni) => {
+    const p = pos[n.id];
+    const d = dims[n.id];
+    const s = d.style;
+    if (!p) return;
+    rc.rectangle(p.x, p.y, d.w, d.h, {
+      roughness: s.roughness, fill: s.fill, fillStyle: 'solid',
+      stroke: s.stroke, strokeWidth: s.strokeW, seed: ni * 13 + 5,
+    });
+    ctx.font = s.font;
+    ctx.fillStyle = s.textColor;
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'top';
+    const ncx = p.x + d.w / 2;
+    const tH = d.lines.length * s.lineH;
+    const ty = p.y + (d.h - tH) / 2;
+    d.lines.forEach((line, li) => ctx.fillText(line, ncx, ty + li * s.lineH));
+  });
+}
+
+// ── In-card render wrapper ─────────────────────────────────────────────────
+const _VIRT_W = 1400;
+
+function renderExcalidrawDiagram(diagramData) {
+  if (!_modalOffscreen) {
+    const off = document.createElement('canvas');
+    _renderDiagram(diagramData, off, _VIRT_W);
+    _modalOffscreen = off;
+  }
+  const canvas = $('res-diagram-canvas');
+  const wrap = canvas.parentElement;
+  const W = Math.max((wrap.clientWidth || 0) - 40, 400);
+  const offW = parseFloat(_modalOffscreen.style.width)  || _VIRT_W;
+  const offH = parseFloat(_modalOffscreen.style.height) || 800;
+  const H = offH * W / offW;
+  const dpr = window.devicePixelRatio || 1;
+  canvas.width  = Math.round(W * dpr);
+  canvas.height = Math.round(H * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = H + 'px';
+  const ctx = canvas.getContext('2d');
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, H);
+  ctx.drawImage(_modalOffscreen, 0, 0, W, H);
+}
+
+// ── Diagram modal ──────────────────────────────────────────────────────────
+const _modal = { panX: 0, panY: 0, zoom: 1, dragging: false, lastX: 0, lastY: 0 };
+let _modalOffscreen = null;
+let _modalTouchState = null;
+
+function openDiagramModal() {
+  if (!_currentDiagramData) return;
+  $('diagram-modal').style.display = 'flex';
+  document.body.style.overflow = 'hidden';
+  if (!_modalOffscreen) {
+    const off = document.createElement('canvas');
+    _renderDiagram(_currentDiagramData, off, _VIRT_W);
+    _modalOffscreen = off;
+  }
+  requestAnimationFrame(() => {
+    const body = $('diagram-modal-body');
+    const MW = body.clientWidth  || (window.innerWidth  - 48);
+    const MH = body.clientHeight || (window.innerHeight - 120);
+    const dpr = window.devicePixelRatio || 1;
+    const mc = $('diagram-modal-canvas');
+    mc.width  = Math.round(MW * dpr);
+    mc.height = Math.round(MH * dpr);
+    mc.style.width  = MW + 'px';
+    mc.style.height = MH + 'px';
+    const offW = parseFloat(_modalOffscreen.style.width)  || _VIRT_W;
+    const offH = parseFloat(_modalOffscreen.style.height) || (_modalOffscreen.height / dpr);
+    _modal.zoom = Math.min((MW - 40) / offW, (MH - 40) / offH, 1);
+    _modal.panX = (MW - offW * _modal.zoom) / 2;
+    _modal.panY = 20;
+    _drawModal();
+    _attachModalEvents();
+  });
+}
+
+function closeDiagramModal() {
+  $('diagram-modal').style.display = 'none';
+  document.body.style.overflow = '';
+  _detachModalEvents();
+}
+
+function _drawModal() {
+  const mc = $('diagram-modal-canvas');
+  if (!mc || !_modalOffscreen) return;
+  const dpr = window.devicePixelRatio || 1;
+  const MW = parseInt(mc.style.width);
+  const MH = parseInt(mc.style.height);
+  const offW = parseFloat(_modalOffscreen.style.width)  || (_modalOffscreen.width  / dpr);
+  const offH = parseFloat(_modalOffscreen.style.height) || (_modalOffscreen.height / dpr);
+  const ctx = mc.getContext('2d');
+  ctx.clearRect(0, 0, mc.width, mc.height);
+  ctx.save();
+  ctx.scale(dpr, dpr);
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, MW, MH);
+  ctx.drawImage(_modalOffscreen, _modal.panX, _modal.panY,
+                offW * _modal.zoom, offH * _modal.zoom);
+  ctx.restore();
+}
+
+function _onMD(e) {
+  _modal.dragging = true;
+  _modal.lastX = e.clientX; _modal.lastY = e.clientY;
+  $('diagram-modal-canvas').style.cursor = 'grabbing';
+}
+function _onMM(e) {
+  if (!_modal.dragging) return;
+  _modal.panX += e.clientX - _modal.lastX;
+  _modal.panY += e.clientY - _modal.lastY;
+  _modal.lastX = e.clientX; _modal.lastY = e.clientY;
+  _drawModal();
+}
+function _onMU() {
+  _modal.dragging = false;
+  const mc = $('diagram-modal-canvas');
+  if (mc) mc.style.cursor = 'grab';
+}
+function _onMW(e) {
+  e.preventDefault();
+  const f = e.deltaY < 0 ? 1.12 : (1 / 1.12);
+  const newZ = Math.max(0.15, Math.min(6, _modal.zoom * f));
+  const mc = $('diagram-modal-canvas');
+  const rect = mc.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  _modal.panX = mx - (mx - _modal.panX) * (newZ / _modal.zoom);
+  _modal.panY = my - (my - _modal.panY) * (newZ / _modal.zoom);
+  _modal.zoom = newZ;
+  _drawModal();
+}
+function _onTS(e) {
+  e.preventDefault();
+  if (e.touches.length === 1) {
+    _modal.dragging = true;
+    _modal.lastX = e.touches[0].clientX; _modal.lastY = e.touches[0].clientY;
+  } else if (e.touches.length === 2) {
+    _modal.dragging = false;
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    _modalTouchState = { dist: Math.hypot(dx, dy), zoom0: _modal.zoom };
+  }
+}
+function _onTM(e) {
+  e.preventDefault();
+  if (e.touches.length === 1 && _modal.dragging) {
+    _modal.panX += e.touches[0].clientX - _modal.lastX;
+    _modal.panY += e.touches[0].clientY - _modal.lastY;
+    _modal.lastX = e.touches[0].clientX; _modal.lastY = e.touches[0].clientY;
+    _drawModal();
+  } else if (e.touches.length === 2 && _modalTouchState) {
+    const dx = e.touches[0].clientX - e.touches[1].clientX;
+    const dy = e.touches[0].clientY - e.touches[1].clientY;
+    _modal.zoom = Math.max(0.15, Math.min(6,
+      _modalTouchState.zoom0 * Math.hypot(dx, dy) / _modalTouchState.dist));
+    _drawModal();
+  }
+}
+function _onTE() { _modal.dragging = false; _modalTouchState = null; }
+
+function _attachModalEvents() {
+  const mc = $('diagram-modal-canvas');
+  if (!mc) return;
+  mc.addEventListener('mousedown', _onMD);
+  mc.addEventListener('mousemove', _onMM);
+  window.addEventListener('mouseup', _onMU);
+  mc.addEventListener('wheel', _onMW, { passive: false });
+  mc.addEventListener('touchstart', _onTS, { passive: false });
+  mc.addEventListener('touchmove',  _onTM, { passive: false });
+  mc.addEventListener('touchend',   _onTE);
+}
+function _detachModalEvents() {
+  const mc = $('diagram-modal-canvas');
+  if (!mc) return;
+  mc.removeEventListener('mousedown', _onMD);
+  mc.removeEventListener('mousemove', _onMM);
+  window.removeEventListener('mouseup', _onMU);
+  mc.removeEventListener('wheel', _onMW);
+  mc.removeEventListener('touchstart', _onTS);
+  mc.removeEventListener('touchmove',  _onTM);
+  mc.removeEventListener('touchend',   _onTE);
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape' && $('diagram-modal').style.display !== 'none') closeDiagramModal();
+});
+
+// ── analysis ───────────────────────────────────────────────────────────────
+async function startAnalysis() {
+  const url = $('url-input').value.trim();
+  if (!url) { $('url-input').focus(); return; }
+
+  const apiKey = SERVER_HAS_KEY ? '' : ($('api-key-input')?.value.trim() || '');
+  if (!SERVER_HAS_KEY && !apiKey) {
+    $('api-key-input').focus();
+    $('api-key-input').style.borderColor = '#e05c5c';
+    return;
+  }
+
+  const maxFrames = parseInt($('frames-select').value);
+  const lang = $('lang-select').value;
+
+  $('analyze-btn').disabled = true;
+  $('analyze-btn').innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> 分析中…';
+  $('progress-section').style.display = 'block';
+  $('result-section').style.display = 'none';
+  $('error-box').style.display = 'none';
+  $('error-detail').style.display = 'none';
+  ['fetch','transcript','frames','analyze','output'].forEach(s => setStep(s,'pending','—'));
+
+  // scroll to progress
+  $('progress-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  let jobId;
+  try {
+    const res = await fetch('/api/analyze', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url, lang, api_key: apiKey, max_frames: maxFrames, no_frames: maxFrames === 0 }),
+    });
+    const data = await res.json();
+    if (!res.ok) { showError(data.error || '请求失败'); return; }
+    jobId = data.job_id;
+  } catch(e) {
+    showError('无法连接到服务器: ' + e.message);
+    return;
+  }
+
+  const es = new EventSource(`/api/stream/${jobId}`);
+  es.onmessage = (e) => {
+    const msg = JSON.parse(e.data);
+    if (msg.type === 'step') {
+      setStep(msg.step, msg.status, msg.message);
+    } else if (msg.type === 'result') {
+      es.close();
+      _lastResult = msg.data;
+      renderResult(msg.data);
+      $('analyze-btn').disabled = false;
+      $('analyze-btn').innerHTML = '开始分析 →';
+    } else if (msg.type === 'error') {
+      es.close();
+      showError(msg.message, msg.detail);
+    } else if (msg.type === 'done') {
+      es.close();
+    }
+  };
+  es.onerror = () => {
+    es.close();
+    if (!_lastResult) showError('连接中断，请刷新页面重试');
+  };
+}
+
+// ── 幕布：打开 overview 封面 ────────────────────────────────────────────────
+function openCurtain() {
+  const band = $('overview-band');
+  if (band.classList.contains('curtains-open')) return;
+  band.classList.add('curtains-open');
+  // 幕布动画（0.65s）结束后显示 flip-stage，并重渲缩略图（此时可读 clientWidth）
+  setTimeout(() => {
+    const stage = $('flip-stage');
+    stage.style.display = 'block';
+    if (_currentDiagramData) {
+      requestAnimationFrame(() => requestAnimationFrame(() => renderExcalidrawDiagram(_currentDiagramData)));
+    }
+    stage.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 700);
+}
+
+// ── 内页：3D 翻页，翻走后展示 chapters ──────────────────────────────────────
+function openDiagramFlip() {
+  const card = $('diagram-card');
+  if (card.classList.contains('flipping')) return;
+  card.classList.add('flipping');
+  // 翻转（0.55s）结束后显示 chapters
+  setTimeout(() => {
+    card.style.visibility = 'hidden';  // 保留占位但隐藏已翻走的卡片
+    const reveal = $('chapters-reveal');
+    reveal.style.display = 'block';
+    reveal.classList.remove('entering');
+    // force reflow
+    void reveal.offsetWidth;
+    reveal.classList.add('entering');
+    reveal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, 560);
+}
+
+// ── 保存全页长图 ────────────────────────────────────────────────────────────
+async function savePageImage(btn) {
+  if (!_lastResult || typeof html2canvas === 'undefined') return;
+  const origHtml = btn.innerHTML;
+  btn.disabled = true;
+  btn.innerHTML = '生成中…';
+
+  // 记录当前状态
+  const band      = $('overview-band');
+  const flipStage = $('flip-stage');
+  const card      = $('diagram-card');
+  const reveal    = $('chapters-reveal');
+  const curtainsWereOpen   = band.classList.contains('curtains-open');
+  const flipWasVisible     = flipStage.style.display !== 'none';
+  const cardWasFlipping    = card.classList.contains('flipping');
+  const cardWasInvisible   = card.style.visibility === 'hidden';
+  const chaptersWereVisible = reveal.style.display !== 'none';
+
+  // 展开所有内容供截图
+  band.classList.add('curtains-open');
+  document.querySelectorAll('.curtain, .curtain-cta').forEach(el => el.style.opacity = '0');
+  flipStage.style.display = 'block';
+  card.classList.remove('flipping');
+  card.style.visibility = '';
+  reveal.style.display = 'block';
+  reveal.classList.remove('entering');
+
+  // 确保 diagram 缩略图以正确宽度渲染
+  if (_currentDiagramData) renderExcalidrawDiagram(_currentDiagramData);
+
+  // 等布局稳定 + 图片加载
+  await new Promise(r => setTimeout(r, 300));
+
+  try {
+    const canvas = await html2canvas($('result-section'), {
+      useCORS: true,
+      scale: 2,
+      backgroundColor: '#0d0d0d',
+      logging: false,
+      imageTimeout: 10000,
+    });
+    const rawTitle = (_lastResult.title || 'screenshot').trim();
+    const safeTitle = rawTitle.replace(/[/\\?%*:|"<>\n\r]/g, '-').slice(0, 120);
+    const a = document.createElement('a');
+    a.download = `${safeTitle}.png`;
+    a.href = canvas.toDataURL('image/png');
+    a.click();
+  } catch (e) {
+    console.error('savePageImage error:', e);
+  }
+
+  // 恢复状态
+  document.querySelectorAll('.curtain, .curtain-cta').forEach(el => el.style.opacity = '');
+  if (!curtainsWereOpen)   band.classList.remove('curtains-open');
+  if (!flipWasVisible)     flipStage.style.display = 'none';
+  if (cardWasFlipping)     card.classList.add('flipping');
+  if (cardWasInvisible)    card.style.visibility = 'hidden';
+  if (!chaptersWereVisible) reveal.style.display = 'none';
+
+  btn.disabled = false;
+  btn.innerHTML = origHtml;
+}
+
+// ── markdown bold: **text** → <strong>text</strong> ────────────────────────
+function parseMd(text) {
+  return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
+}
+
+// ── render result ──────────────────────────────────────────────────────────
+function renderResult(data) {
+  // meta line: channel · duration · link
+  $('res-meta-line').innerHTML =
+    `<span>📺 ${data.channel}</span>` +
+    `<span>⏱ ${data.duration_str}</span>` +
+    `<a href="${data.youtube_url}" target="_blank">▶ 在 YouTube 观看</a>`;
+
+  // 超大标题
+  $('res-title').textContent = data.title;
+
+  // 概述
+  $('res-overview').textContent = data.overview;
+
+  // 缩略图：尝试 blob URL（规避 html2canvas CORS 限制），失败时回退直接 src
+  const thumbEl = $('res-thumb');
+  thumbEl.src = data.thumbnail_url;
+  fetch(data.thumbnail_url, { mode: 'cors' })
+    .then(r => r.blob())
+    .then(blob => { thumbEl.src = URL.createObjectURL(blob); })
+    .catch(() => {});
+
+  // 章节列表
+  const ch = $('res-chapters');
+  ch.innerHTML = '';
+  (data.chapters || []).forEach((c, i) => {
+    const ytLink = `https://www.youtube.com/watch?v=${data.video_id}&t=${Math.floor(c.start_seconds)}s`;
+    const numStr = String(i + 1).padStart(2, '0');
+    const imgHtml = c.frame_url
+      ? `<img src="${c.frame_url}" alt="${c.title}" loading="lazy">`
+      : `<div class="mag-chapter-no-img">▶</div>`;
+    ch.innerHTML += `
+      <div class="mag-chapter">
+        <div class="mag-chapter-img">${imgHtml}</div>
+        <div class="mag-chapter-body" data-num="${numStr}">
+          <div class="mag-chapter-ts">${c.timestamp}</div>
+          <div class="mag-chapter-title"><a href="${ytLink}" target="_blank">${c.title}</a></div>
+          <p class="mag-chapter-summary">${parseMd(c.summary)}</p>
+        </div>
+      </div>`;
+  });
+
+  // 重置幕布 + 翻页状态
+  $('overview-band').classList.remove('curtains-open');
+  const flipStage = $('flip-stage');
+  flipStage.style.display = 'none';
+  const card = $('diagram-card');
+  card.classList.remove('flipping');
+  card.style.visibility = '';
+  // 重置 chapters
+  const reveal = $('chapters-reveal');
+  reveal.style.display = 'none';
+  reveal.classList.remove('entering');
+
+  // 显示结果（先显示再量 canvas）
+  $('result-section').style.display = 'block';
+  $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // 有图表：幕布 → 内页 → chapters
+  const dd = data.diagram_data;
+  if (dd && dd.nodes && dd.nodes.length) {
+    _currentDiagramData = dd;
+    _modalOffscreen = null;
+    // 预先渲染到 offscreen，等幕布打开后 flip-stage 可见时直接显示
+    requestAnimationFrame(() => requestAnimationFrame(() => renderExcalidrawDiagram(dd)));
+  } else {
+    // 无图表：幕布自动打开，直接显示 chapters
+    $('overview-band').classList.add('curtains-open');
+    reveal.style.display = 'block';
+  }
+}
+
+// ── utilities ──────────────────────────────────────────────────────────────
+function downloadJSON() {
+  if (!_lastResult) return;
+  const blob = new Blob([JSON.stringify(_lastResult, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${_lastResult.video_id || 'summary'}.json`;
+  a.click();
+}
+
+function resetForm() {
+  $('url-input').value = '';
+  $('progress-section').style.display = 'none';
+  $('result-section').style.display = 'none';
+  // 重置幕布 + 翻页
+  $('overview-band').classList.remove('curtains-open');
+  $('flip-stage').style.display = 'none';
+  $('diagram-card').classList.remove('flipping');
+  $('diagram-card').style.visibility = '';
+  $('chapters-reveal').style.display = 'none';
+  $('chapters-reveal').classList.remove('entering');
+  $('error-box').style.display = 'none';
+  $('analyze-btn').disabled = false;
+  $('analyze-btn').innerHTML = '开始分析 →';
+  _lastResult = null;
+  _currentDiagramData = null;
+  _modalOffscreen = null;
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+// Enter key
+$('url-input').addEventListener('keydown', e => { if (e.key === 'Enter') startAnalysis(); });
+
+// CSS spin keyframe
+const style = document.createElement('style');
+style.textContent = '@keyframes spin { to { transform: rotate(360deg); } }';
+document.head.appendChild(style);
+</script>
+</body>
+</html>
