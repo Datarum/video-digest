@@ -33,6 +33,8 @@ class Summary:
     chapters: List[Chapter]
     frames: List[Frame]
     diagram_data: dict = field(default_factory=dict)   # nodes + edges JSON
+    content_type_data: dict = field(default_factory=dict)  # content classification (NBB)
+    illustration_url: str = ""                             # Flux image URL (NBB)
 
     def to_dict(self) -> dict:
         return {
@@ -49,6 +51,8 @@ class Summary:
             ],
             "frame_count": len(self.frames),
             "diagram_data": self.diagram_data,
+            "content_type_data": self.content_type_data,
+            "illustration_url": self.illustration_url,
         }
 
 
@@ -68,10 +72,68 @@ Return only valid JSON — no markdown, no extra text.
 CRITICAL JSON rule: never use ASCII double-quote characters (") inside string values."""
 
 _DIAGRAM_SYSTEM = """\
-You are a visual knowledge architect. Given a video title, overview, and chapter list, \
-produce a node-edge graph structure for a hand-drawn style diagram.
+You are a visual content strategist. Given a video title, overview, and chapter list, \
+produce a structured infographic summary with steps, stats, and a memorable quote.
 Return only valid JSON — no markdown fences, no extra text.
+CRITICAL JSON rule: never use ASCII double-quote characters (") inside string values. \
+For quoted terms use single quotes (') or omit quotes entirely."""
+
+_CONTENT_TYPE_SYSTEM = """\
+You are a video content analyst. Classify the video type based on title and transcript.
+Return only valid JSON — no markdown, no extra text.
 CRITICAL JSON rule: never use ASCII double-quote characters (") inside string values."""
+
+
+def _build_content_type_prompt(video_title: str, transcript_excerpt: str) -> str:
+    return f"""\
+Video title: {video_title}
+
+Transcript excerpt (first portion):
+{transcript_excerpt}
+
+Classify this video and return JSON:
+{{
+  "content_type": "<educational | tutorial | narrative | opinion | showcase | interview>",
+  "viz_template": "<comparison | steps | story_panels | argument_tree | grid | qa>",
+  "color_palette": "<tech_blue | warm_earth | nature_green | dramatic_dark | editorial_clean>",
+  "key_themes": ["<theme 1, English, 2-4 words>", "<theme 2, English, 2-4 words>", "<theme 3, English, 2-4 words>"],
+  "visual_metaphor": "<one concrete visual scene capturing the video essence, English, 10-20 words>",
+  "mood": "<inspiring | analytical | dramatic | educational | celebratory | critical>"
+}}
+
+Definitions:
+- educational: explains concepts/theories, how things work, why something matters
+- tutorial: step-by-step practical how-to guide, actionable instructions
+- narrative: story, history, retrospective, event recap, documentary-style
+- opinion: commentary, debate, analysis, review, critique
+- showcase: product demo, collection tour, portfolio, before/after comparison
+- interview: Q&A, conversation, podcast-style discussion
+
+viz_template must match content_type:
+- educational → comparison
+- tutorial → steps
+- narrative → story_panels
+- opinion → argument_tree
+- showcase → grid
+- interview → qa
+
+color_palette guide:
+- tech/AI/digital/science topics → tech_blue
+- lifestyle/creator/business/human → warm_earth
+- nature/health/environment/growth → nature_green
+- history/drama/geopolitics/dark → dramatic_dark
+- data/research/minimal/clean → editorial_clean"""
+
+
+def _default_content_type() -> dict:
+    return {
+        "content_type": "educational",
+        "viz_template": "comparison",
+        "color_palette": "warm_earth",
+        "key_themes": ["key insights", "core concepts", "main ideas"],
+        "visual_metaphor": "a journey of discovery through interconnected ideas and pathways",
+        "mood": "educational",
+    }
 
 
 def _build_user_prompt(
@@ -112,61 +174,62 @@ Requirements:
 - ANTI-REPETITION: Overview = what+why (big picture only). Chapters = when + segment-specific detail. Never repeat the same sentence or point across fields."""
 
 
-def _build_diagram_prompt(
+def _build_infographic_prompt(
     video_title: str,
     overview: str,
-    chapter_titles: List[str],
+    chapters: List[dict],
     output_language: str,
 ) -> str:
     lang_note = (
-        f"Write ALL node labels in {output_language}."
+        f"Write ALL text in {output_language}."
         if output_language.lower() != "english"
-        else "Write all node labels in English."
+        else "Write all text in English."
     )
-    chapters_list = "\n".join(f"- {t}" for t in chapter_titles)
+    n = len(chapters)
+    chapters_text = "\n".join(
+        f"{i+1}. [{c.get('timestamp', '')}] {c.get('title', '')} — {c.get('summary', '')}"
+        for i, c in enumerate(chapters)
+    )
 
     return f"""\
 Video title: {video_title}
 
 Overview: {overview}
 
-Chapters:
-{chapters_list}
+Chapters ({n} total):
+{chapters_text}
 
 {lang_note}
 
-Create a knowledge graph for a hand-drawn diagram. Return a JSON object:
+Create an infographic summary. Return a JSON object with EXACTLY this structure:
 {{
-  "nodes": [
-    {{"id": "root", "label": "<core thesis in one memorable sentence, 8-12 words>", "type": "core"}},
-    {{"id": "p1",   "label": "<Phase 1 heading, 3-5 words>", "type": "phase"}},
-    {{"id": "p1a",  "label": "<specific insight with concrete detail, 10-15 words>", "type": "insight"}},
-    {{"id": "p1b",  "label": "<another specific insight from this phase, 10-15 words>", "type": "insight"}},
-    {{"id": "p2",   "label": "<Phase 2 heading, 3-5 words>", "type": "phase"}},
-    {{"id": "p2a",  "label": "<key conclusion or evidence with detail, 10-15 words>", "type": "insight"}},
-    {{"id": "p2b",  "label": "<supporting mechanism or implication, 10-15 words>", "type": "insight"}},
-    {{"id": "p3",   "label": "<Phase 3 heading, 3-5 words>", "type": "phase"}},
-    {{"id": "p3a",  "label": "<actionable takeaway or broader impact, 10-15 words>", "type": "insight"}},
-    {{"id": "p3b",  "label": "<why this matters or what to do next, 10-15 words>", "type": "insight"}}
+  "headline": "<the single most important takeaway from this video, 10-16 words>",
+  "subtitle": "<content type or theme, 4-8 words, e.g. 'Technical Tutorial' or 'Market Analysis'>",
+  "steps": [
+    {{
+      "num": 1,
+      "icon": "<one relevant emoji that visually represents this chapter>",
+      "title": "<chapter title condensed to 3-6 words>",
+      "duration": "<time range, e.g. '00:00 — 03:15'>",
+      "points": ["<key insight 1 from this chapter, 8-14 words>", "<key insight 2, 8-14 words>"]
+    }}
   ],
-  "edges": [
-    {{"from": "root", "to": "p1"}},
-    {{"from": "p1", "to": "p1a"}},
-    {{"from": "p1", "to": "p1b"}},
-    {{"from": "root", "to": "p2"}},
-    {{"from": "p2", "to": "p2a"}},
-    {{"from": "p2", "to": "p2b"}},
-    {{"from": "root", "to": "p3"}},
-    {{"from": "p3", "to": "p3a"}},
-    {{"from": "p3", "to": "p3b"}}
-  ]
+  "stats": [
+    "<most important conclusion from the whole video, 10-16 words>",
+    "<second key finding or number, 10-16 words>",
+    "<third takeaway, implication, or recommendation, 10-16 words>"
+  ],
+  "quote": "<a memorable phrase or the strongest argument from the video, 15-30 words>"
 }}
 
 Rules:
-- Exactly 1 root node (type "core"), 3-4 phase nodes, 2-3 insight nodes per phase
-- Each insight label must be a complete thought (10-15 words) — NOT a vague topic label
-- Labels must NOT contain double quotes, backslashes, or special JSON chars
-- Keep all labels under 80 characters"""
+- steps: exactly {n} entries, one per chapter, in chronological order
+- icon: choose emoji matching each chapter theme (e.g. 🔍 discovery, ⚙️ process, 📊 data, 💡 insight, 🎯 goal, 🤖 AI/tech, 💰 finance, 🌍 global)
+- duration: use chapter timestamps, format as 'MM:SS — MM:SS'
+- points: exactly 2 per step, each a complete informative sentence (NO vague labels)
+- stats: exactly 3 standalone insights not tied to a specific chapter
+- quote: the most quotable statement — paraphrase if no obvious direct quote exists
+- String values must NOT contain ASCII double-quote characters ("); use single quotes (') for any quoted terms"""
 
 
 def _build_timestamps_prompt(
@@ -535,11 +598,11 @@ def get_key_timestamps(
 def get_diagram(
     video_title: str,
     overview: str,
-    chapter_titles: List[str],
+    chapters: List[dict],
     api_key: str,
     output_language: str = "English",
 ) -> dict:
-    """Generate a knowledge graph (nodes + edges) for the diagram.
+    """Generate an infographic summary (headline, steps, stats, quote) for the diagram.
 
     Separate lightweight Claude call — not embedded in the main JSON response,
     so there are no JSON escaping issues with complex strings.
@@ -547,12 +610,12 @@ def get_diagram(
     Args:
         video_title:     Title of the video.
         overview:        The overview text from the main analysis.
-        chapter_titles:  List of chapter title strings.
+        chapters:        List of dicts with "title", "timestamp", "summary" keys.
         api_key:         Anthropic API key.
-        output_language: Language for node labels.
+        output_language: Language for all output text.
 
     Returns:
-        dict with "nodes" and "edges" lists, or empty dict on failure.
+        dict with "headline", "subtitle", "steps", "stats", "quote", or empty dict on failure.
     """
     try:
         import anthropic
@@ -560,22 +623,58 @@ def get_diagram(
         return {}
 
     client = anthropic.Anthropic(api_key=api_key)
-    prompt = _build_diagram_prompt(video_title, overview, chapter_titles, output_language)
+    prompt = _build_infographic_prompt(video_title, overview, chapters, output_language)
 
     try:
         response = client.messages.create(
             model=_MODEL,
-            max_tokens=1024,
+            max_tokens=2048,
             system=_DIAGRAM_SYSTEM,
             messages=[{"role": "user", "content": prompt}],
         )
         data = _parse_json_response(response.content[0].text)
-        if "nodes" in data and "edges" in data:
+        if "headline" in data and "steps" in data and isinstance(data["steps"], list):
             return data
     except Exception:
         pass
 
     return {}
+
+
+def analyze_content_type(
+    video_title: str,
+    segments: List[Segment],
+    api_key: str,
+) -> dict:
+    """Quick content type classification using the first portion of transcript.
+
+    Returns a dict with content_type, viz_template, color_palette, key_themes,
+    visual_metaphor, mood. Falls back to defaults on any error.
+    """
+    try:
+        import anthropic
+    except ImportError:
+        return _default_content_type()
+
+    client = anthropic.Anthropic(api_key=api_key)
+    transcript_text = _segments_to_text(segments)
+    excerpt = transcript_text[:6000]
+    prompt = _build_content_type_prompt(video_title, excerpt)
+
+    try:
+        response = client.messages.create(
+            model=_MODEL,
+            max_tokens=512,
+            system=_CONTENT_TYPE_SYSTEM,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        data = _parse_json_response(response.content[0].text)
+        if "content_type" in data and "key_themes" in data:
+            return data
+    except Exception:
+        pass
+
+    return _default_content_type()
 
 
 def analyze(
@@ -630,9 +729,12 @@ def analyze(
 
     overview = merged.get("overview", "")
 
-    # ── Second pass: generate diagram separately (avoids JSON escaping issues)
-    chapter_titles = [c.title for c in chapters]
-    diagram_data = get_diagram(video_title, overview, chapter_titles, api_key, output_language)
+    # ── Second pass: generate infographic separately (avoids JSON escaping issues)
+    chapters_data = [
+        {"title": c.title, "timestamp": c.timestamp_str, "summary": c.summary}
+        for c in chapters
+    ]
+    diagram_data = get_diagram(video_title, overview, chapters_data, api_key, output_language)
 
     return Summary(
         title=video_title,

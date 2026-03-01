@@ -564,6 +564,21 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
 }
 .btn-expand:hover { border-color: var(--primary); color: var(--primary); }
 
+/* ── peek-summary button (inside chapters header) ──────────────────────── */
+#chapters-label-bar { justify-content: space-between; }
+#chapters-label-bar::after { display: none; }
+.btn-peek-summary {
+  background: none; border: none;
+  font-size: 10px; font-weight: 700;
+  letter-spacing: 0.22em; text-transform: uppercase;
+  color: var(--text-muted);
+  cursor: pointer; padding: 4px 0;
+  border-bottom: 1px solid transparent;
+  transition: color .15s, border-color .15s;
+  flex-shrink: 0;
+}
+.btn-peek-summary:hover { color: var(--primary); border-color: var(--primary); }
+
 /* ── action bar ─────────────────────────────────────────────────────────── */
 .mag-action-bar {
   display: flex; gap: 12px; flex-wrap: wrap;
@@ -631,6 +646,123 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
   flex-shrink: 0; text-align: center;
 }
 
+/* ── mode selector ──────────────────────────────────────────────────────── */
+.mode-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 40px;
+  width: fit-content;
+  min-width: 320px;
+}
+.mode-btn {
+  background: transparent;
+  border: 1px solid var(--border);
+  padding: 14px 20px;
+  cursor: pointer;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  transition: background .15s, border-color .15s;
+  text-align: left;
+}
+.mode-btn.active { background: rgba(224,122,79,0.08); border-color: var(--primary); }
+.mode-btn-label {
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.15em; text-transform: uppercase;
+  color: var(--text); line-height: 1;
+}
+.mode-btn.active .mode-btn-label { color: var(--primary); }
+.mode-btn-desc {
+  font-size: 12px; color: var(--text-muted);
+  line-height: 1.5; max-width: 280px;
+}
+.mode-btn.active .mode-btn-desc { color: rgba(240,237,232,0.6); }
+
+/* ── viz sub-selector ────────────────────────────────────────────────────── */
+.viz-selector-label {
+  font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+  text-transform: uppercase; color: var(--text-muted);
+  margin-bottom: 8px;
+}
+.viz-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.viz-btn {
+  background: transparent; border: 1px solid var(--border);
+  padding: 6px 12px; cursor: pointer;
+  font-size: 11px; color: var(--text-muted);
+  transition: background .15s, border-color .15s, color .15s;
+}
+.viz-btn:hover { border-color: var(--primary); color: var(--text); }
+.viz-btn.active {
+  background: rgba(224,122,79,0.1);
+  border-color: var(--primary); color: var(--primary);
+}
+
+/* ── NBB illustration section ───────────────────────────────────────────── */
+#nbb-illustration-section { display: none; }
+.nbb-illus-card {
+  border-bottom: 1px solid var(--border);
+  background: #080808;
+}
+.nbb-illus-img-wrap {
+  width: 100%;
+}
+#nbb-illus-img {
+  width: 100%;
+  height: auto;
+  display: block;
+}
+.nbb-illus-loading {
+  width: 100%;
+  height: 400px;
+  background: linear-gradient(90deg, #0f0f0f 25%, #1a1a1a 50%, #0f0f0f 75%);
+  background-size: 400% 100%;
+  animation: shimmer 1.6s ease-in-out infinite;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 10px;
+}
+@keyframes shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+.nbb-loading-text {
+  color: var(--text-muted);
+  font-size: 10px;
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+}
+.nbb-chapters-toggle {
+  display: flex; align-items: center; justify-content: center; gap: 12px;
+  padding: 20px 60px;
+  border-bottom: 1px solid var(--border);
+  cursor: pointer;
+  font-size: 10px; font-weight: 800;
+  letter-spacing: 0.18em; text-transform: uppercase;
+  color: var(--text-muted);
+  transition: color .15s, background .15s;
+  background: var(--surface);
+  user-select: none;
+}
+.nbb-chapters-toggle:hover { color: var(--text); background: rgba(255,255,255,0.04); }
+#nbb-toggle-arrow { transition: transform .3s; display: inline-block; }
+#nbb-toggle-arrow.flipped { transform: rotate(180deg); }
+
+/* ── NBB extra progress steps ───────────────────────────────────────────── */
+.nbb-step { display: none; }
+.nbb-step .step-icon {
+  background: transparent;
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text-muted);
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+.nbb-step.active .step-icon,
+.nbb-step.done   .step-icon { border-color: var(--primary); }
+
 /* ── misc ───────────────────────────────────────────────────────────────── */
 /* shared btn base */
 .btn {
@@ -683,6 +815,32 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
     <p class="hero-sub">输入 YouTube 链接，AI 自动总结视频要点、提取章节结构与关键截图。</p>
 
     <div class="hero-form">
+
+      <!-- mode selector -->
+      <div class="mode-selector">
+        <button class="mode-btn active" id="mode-btn-old" onclick="selectMode('old_timer')">
+          <span class="mode-btn-label">Old Timer</span>
+          <span class="mode-btn-desc">按章节生成文字摘要、关键截图与手绘结构图，适合深度阅读与存档。</span>
+        </button>
+        <button class="mode-btn" id="mode-btn-nbb" onclick="selectMode('new_born_baby')">
+          <span class="mode-btn-label">✦ New Born</span>
+          <span class="mode-btn-desc">AI 生成全宽信息图，将视频核心内容与文字直接融合在图像中呈现。</span>
+        </button>
+      </div>
+
+      <div id="nbb-viz-selector" style="display:none; margin-top:12px;">
+        <div class="viz-selector-label">信息图样式</div>
+        <div class="viz-options">
+          <button class="viz-btn active" onclick="selectViz('auto')">自动判断</button>
+          <button class="viz-btn" onclick="selectViz('comparison')">对比分析</button>
+          <button class="viz-btn" onclick="selectViz('steps')">步骤流程</button>
+          <button class="viz-btn" onclick="selectViz('story_panels')">故事叙述</button>
+          <button class="viz-btn" onclick="selectViz('argument_tree')">论点树</button>
+          <button class="viz-btn" onclick="selectViz('grid')">展示网格</button>
+          <button class="viz-btn" onclick="selectViz('qa')">问答对话</button>
+        </div>
+      </div>
+
       <div class="hero-url-row">
         <input id="url-input" class="hero-url-input" type="text"
                placeholder="https://www.youtube.com/watch?v=..."
@@ -714,6 +872,13 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
         <div class="hero-key-group" id="key-group">
           <label>Anthropic API Key</label>
           <input id="api-key-input" class="hero-key-input" type="password" placeholder="sk-ant-...">
+        </div>
+        {% endif %}
+
+        {% if not server_has_sf_key %}
+        <div class="hero-key-group" id="sf-key-group" style="display:none">
+          <label>硅基流动 API Key</label>
+          <input id="sf-key-input" class="hero-key-input" type="password" placeholder="sk-...">
         </div>
         {% endif %}
 
@@ -749,11 +914,25 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
           <div class="step-msg" id="msg-frames">—</div>
         </div>
       </div>
+      <div class="step nbb-step" id="step-classify">
+        <div class="step-icon">✦</div>
+        <div class="step-body">
+          <div class="step-name">内容类型识别</div>
+          <div class="step-msg" id="msg-classify">—</div>
+        </div>
+      </div>
       <div class="step" id="step-analyze">
         <div class="step-icon">04</div>
         <div class="step-body">
           <div class="step-name">Claude AI 分析</div>
           <div class="step-msg" id="msg-analyze">—</div>
+        </div>
+      </div>
+      <div class="step nbb-step" id="step-illustrate">
+        <div class="step-icon">✦</div>
+        <div class="step-body">
+          <div class="step-name">大图生成</div>
+          <div class="step-msg" id="msg-illustrate">—</div>
         </div>
       </div>
       <div class="step" id="step-output">
@@ -780,6 +959,22 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
       <div class="res-video-title" id="res-title"></div>
       <div class="res-title-actions">
         <button class="res-save-btn" id="save-img-btn" onclick="savePageImage(this)">↓ 保存长图</button>
+      </div>
+    </div>
+
+    <!-- NBB: Flux 插图卡 + 关键洞察 -->
+    <div id="nbb-illustration-section">
+      <div class="nbb-illus-card">
+        <div class="nbb-illus-img-wrap" id="nbb-illus-wrap">
+          <div class="nbb-illus-loading" id="nbb-illus-loading">
+            <span class="nbb-loading-text">正在生成主题插图…</span>
+          </div>
+          <img id="nbb-illus-img" src="" alt="illustration" style="display:none">
+        </div>
+      </div>
+      <div class="nbb-chapters-toggle" id="nbb-chapters-toggle" onclick="toggleNbbChapters()">
+        <span>展开章节详情</span>
+        <span id="nbb-toggle-arrow">↓</span>
       </div>
     </div>
 
@@ -823,7 +1018,10 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
 
     <!-- 章节（默认隐藏，点击封面后展开） -->
     <div id="chapters-reveal" style="display:none">
-      <div class="res-chapters-label">Chapters</div>
+      <div class="res-chapters-label" id="chapters-label-bar">
+        Chapters
+        <button class="btn-peek-summary" onclick="openDiagramModal()">⛶ 信息图</button>
+      </div>
       <div id="res-chapters"></div>
       <div class="mag-action-bar">
         <button class="btn btn-outline" onclick="downloadJSON()">⬇ 下载 JSON</button>
@@ -855,9 +1053,12 @@ header h1 { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: v
 
 <script>
 // ── state ──────────────────────────────────────────────────────────────────
-const SERVER_HAS_KEY = {{ server_has_key | tojson }};
-let _lastResult = null;
+const SERVER_HAS_KEY    = {{ server_has_key | tojson }};
+const SERVER_HAS_SF_KEY = {{ server_has_sf_key | tojson }};
+let _lastResult         = null;
 let _currentDiagramData = null;
+let _currentMode        = 'old_timer';
+let _currentVizTemplate = 'auto';
 
 // ── helpers ────────────────────────────────────────────────────────────────
 function $(id) { return document.getElementById(id); }
@@ -865,8 +1066,10 @@ function $(id) { return document.getElementById(id); }
 function setStep(name, status, message) {
   const el = $(`step-${name}`);
   if (!el) return;
-  el.className = `step ${status}`;
-  const stepNums = { fetch: '01', transcript: '02', frames: '03', analyze: '04', output: '05' };
+  const isNbbStep = el.classList.contains('nbb-step');
+  el.className = `step${isNbbStep ? ' nbb-step' : ''} ${status}`;
+  const stepNums = { fetch: '01', transcript: '02', frames: '03', analyze: '04', output: '05',
+                     classify: '✦', illustrate: '✦' };
   const icons = { active: '…', done: '✓', warn: '!', skip: '—', error: '✗' };
   el.querySelector('.step-icon').textContent = icons[status] || stepNums[name] || '○';
   if (message) $(`msg-${name}`).textContent = message;
@@ -884,209 +1087,346 @@ function showError(msg, detail) {
   $('analyze-btn').textContent = '重试 →';
 }
 
-// ── Diagram core renderer ──────────────────────────────────────────────────
-function _renderDiagram(diagramData, canvas, drawW) {
-  const nodes = diagramData.nodes || [];
-  const edges = diagramData.edges || [];
-  if (!nodes.length) return;
+// ── mode selector ──────────────────────────────────────────────────────────
+function selectMode(mode) {
+  _currentMode = mode;
+  const isNbb = mode === 'new_born_baby';
+  $('mode-btn-old').classList.toggle('active', !isNbb);
+  $('mode-btn-nbb').classList.toggle('active',  isNbb);
+  // Show Silicon Flow key field only in NBB mode and when not already set server-side
+  const sfGroup = $('sf-key-group');
+  if (sfGroup) sfGroup.style.display = isNbb ? 'flex' : 'none';
+  // Show/hide NBB-specific steps in the progress section
+  document.querySelectorAll('.nbb-step').forEach(el => {
+    el.style.display = isNbb ? 'flex' : 'none';
+  });
+  // Show/hide viz sub-selector
+  const vizSel = $('nbb-viz-selector');
+  if (vizSel) vizSel.style.display = isNbb ? 'block' : 'none';
+  if (!isNbb) selectViz('auto');
+}
 
+function selectViz(viz) {
+  _currentVizTemplate = viz;
+  document.querySelectorAll('.viz-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.getAttribute('onclick') === `selectViz('${viz}')`);
+  });
+}
+
+// ── Infographic renderer ───────────────────────────────────────────────────
+function _renderInfoGraphic(data, canvas, drawW) {
+  const { headline = '', subtitle = '', steps = [], stats = [], quote = '' } = data;
+  if (!headline && !steps.length) return;
+
+  const W   = drawW;
   const dpr = window.devicePixelRatio || 1;
-  const W = drawW;
+  const PAD = 52;
 
-  const iMaxW = Math.min(W * 0.27, 195);
-  const STYLES = {
-    core: {
-      font: 'bold 17px Caveat, sans-serif', lineH: 23, padX: 20, padY: 15,
-      minW: 200, maxW: Math.min(W * 0.44, 300),
-      fill: 'rgba(224,122,79,0.18)', stroke: '#e07a4f', strokeW: 2.5, roughness: 1.5, textColor: '#f0c4a8',
-    },
-    phase: {
-      font: '700 15px Caveat, sans-serif', lineH: 20, padX: 14, padY: 11,
-      minW: 115, maxW: Math.min(W * 0.24, 175),
-      fill: 'rgba(240,237,232,0.07)', stroke: 'rgba(240,237,232,0.5)', strokeW: 1.8, roughness: 1.3, textColor: '#d0cdc8',
-    },
-    insight: {
-      font: '14px Caveat, sans-serif', lineH: 18, padX: 12, padY: 10,
-      minW: 120, maxW: iMaxW,
-      fill: 'rgba(240,237,232,0.03)', stroke: 'rgba(240,237,232,0.22)', strokeW: 1.3, roughness: 1.2, textColor: '#888',
-    },
-  };
+  // ── colors
+  const PRIMARY      = '#e07a4f';
+  const STEP_COLORS  = ['#e07a4f','#d4b44a','#7ec8a4','#7aabe0','#a27be0','#e07aa0'];
+  const C_HEAD       = '#f0ede8';
+  const C_SUB        = '#555';
+  const C_CARD_BG    = 'rgba(255,255,255,0.04)';
+  const C_CARD_BD    = 'rgba(255,255,255,0.09)';
+  const C_TITLE      = '#edeae5';
+  const C_DUR        = '#504e4a';
+  const C_DIV        = 'rgba(255,255,255,0.08)';
+  const C_PT         = '#888';
+  const C_STAT       = '#b8b5b0';
+  const C_QBRD       = 'rgba(255,255,255,0.14)';
+  const C_QTEXT      = '#a0a0a0';
+  const C_ARROW      = 'rgba(255,255,255,0.18)';
 
+  // ── CJK-aware text measurement
   const _mc = document.createElement('canvas').getContext('2d');
-
-  function parseFontSize(fontStr) {
-    const m = fontStr.match(/(\d+(?:\.\d+)?)px/);
-    return m ? +m[1] : 16;
-  }
-
-  function textW(str, font) {
+  function measW(text, font) {
     _mc.font = font;
-    const measured = _mc.measureText(str).width;
-    const fs = parseFontSize(font);
-    const cjk = (str.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\uff00-\uffef]/g) || []).length;
-    const minW = cjk * fs * 0.97 + (str.length - cjk) * fs * 0.56;
-    return Math.max(measured, minW);
+    const m  = _mc.measureText(text).width;
+    const fs = parseFloat(font.match(/(\d+(?:\.\d+)?)px/)?.[1] || 16);
+    const cjk = (text.match(/[\u4e00-\u9fff\u3040-\u30ff\uac00-\ud7af\uff00-\uffef]/g) || []).length;
+    return Math.max(m, cjk * fs * 0.97 + (text.length - cjk) * fs * 0.56);
   }
-
-  function wrapText(text, font, maxW) {
-    const parts = text.split(' ');
+  function wrap(text, font, maxW) {
+    const words = text.split(' ');
     const lines = [];
     let cur = '';
-    for (const p of parts) {
-      const test = cur ? cur + ' ' + p : p;
-      if (textW(test, font) > maxW && cur) { lines.push(cur); cur = p; }
-      else cur = test;
+    for (const w of words) {
+      const t = cur ? cur + ' ' + w : w;
+      if (measW(t, font) > maxW && cur) { lines.push(cur); cur = w; }
+      else cur = t;
     }
     if (cur) lines.push(cur);
     const out = [];
     for (const ln of lines) {
-      if (textW(ln, font) <= maxW * 1.05) { out.push(ln); continue; }
+      if (measW(ln, font) <= maxW * 1.05) { out.push(ln); continue; }
       let seg = '';
       for (const ch of ln) {
-        if (textW(seg + ch, font) > maxW && seg) { out.push(seg); seg = ch; }
+        if (measW(seg + ch, font) > maxW && seg) { out.push(seg); seg = ch; }
         else seg += ch;
       }
       if (seg) out.push(seg);
     }
-    return out.length ? out : [text.slice(0, 10) + '…'];
+    return out.length ? out : [text.slice(0, 15) + '…'];
   }
 
-  const children = {};
-  nodes.forEach(n => children[n.id] = []);
-  edges.forEach(e => { if (children[e.from] !== undefined) children[e.from].push(e.to); });
-  const root = nodes.find(n => n.type === 'core');
-  if (!root) return;
-
-  const dims = {};
-  nodes.forEach(n => {
-    const s = STYLES[n.type] || STYLES.insight;
-    const maxTW = s.maxW - s.padX * 2;
-    const lines = wrapText(n.label, s.font, maxTW);
-    const measuredW = lines.reduce((m, l) => Math.max(m, textW(l, s.font)), 0);
-    const w = Math.max(s.minW, Math.min(s.maxW, measuredW + s.padX * 2 + 6));
-    const h = s.padY * 2 + lines.length * s.lineH;
-    dims[n.id] = { w, h, lines, style: s };
-  });
-
-  const phaseIds = children[root.id] || [];
-  const pCount = Math.max(phaseIds.length, 1);
-  const R1 = Math.min(W * 0.165, 165);
-  const R2 = Math.min(W * 0.36, 300);
-  const cX = W / 2;
-  const cY = R2 + (dims[root.id]?.h || 60) / 2 + 30;
-  const pos = {};
-  const rd = dims[root.id];
-  pos[root.id] = { x: cX - rd.w / 2, y: cY - rd.h / 2 };
-
-  function exitPt(p, d, tx, ty) {
-    const ncx = p.x + d.w / 2, ncy = p.y + d.h / 2;
-    const dx = tx - ncx, dy = ty - ncy;
-    if (Math.abs(dx) < 0.5 && Math.abs(dy) < 0.5) return { x: ncx, y: ncy };
-    const hw = d.w / 2 + 1, hh = d.h / 2 + 1;
-    const tx_ = dx ? Math.abs(hw / dx) : Infinity;
-    const ty_ = dy ? Math.abs(hh / dy) : Infinity;
-    const t = Math.min(tx_, ty_);
-    return { x: ncx + dx * t, y: ncy + dy * t };
+  // ── rounded rect helper (cross-browser)
+  function drawRR(ctx, x, y, w, h, r) {
+    ctx.beginPath();
+    if (ctx.roundRect) {
+      ctx.roundRect(x, y, w, h, r);
+    } else {
+      ctx.moveTo(x + r, y);
+      ctx.lineTo(x + w - r, y);
+      ctx.quadraticCurveTo(x + w, y, x + w, y + r);
+      ctx.lineTo(x + w, y + h - r);
+      ctx.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+      ctx.lineTo(x + r, y + h);
+      ctx.quadraticCurveTo(x, y + h, x, y + h - r);
+      ctx.lineTo(x, y + r);
+      ctx.quadraticCurveTo(x, y, x + r, y);
+      ctx.closePath();
+    }
   }
 
-  function radHalf(d, cosA, sinA) {
-    return d.w / 2 * cosA + d.h / 2 * sinA;
+  // ── layout zones
+  const n     = Math.max(1, steps.length);
+  const LW    = (W - PAD * 2) * 0.63;
+  const PGAP  = 36;
+  const RX    = PAD + LW + PGAP;
+  const RW    = W - PAD - RX;
+  const SGAP  = 12;
+  const stepW = Math.floor((LW - SGAP * (n - 1)) / n);
+
+  // ── scale fonts with step count
+  const sTF  = n <= 3 ? 'bold 20px Caveat, sans-serif'
+             : n <= 5 ? 'bold 17px Caveat, sans-serif'
+             :          'bold 15px Caveat, sans-serif';
+  const sPF  = n <= 4 ? '15px Caveat, sans-serif' : '13px Caveat, sans-serif';
+  const sTLH = n <= 3 ? 26 : n <= 5 ? 22 : 20;
+  const sPLH = n <= 4 ? 21 : 18;
+  const IR   = n <= 4 ? 26 : 22;   // icon circle radius
+
+  // ── step card measurements
+  const CARD_TP  = 12;
+  const ICON_SEC = CARD_TP + IR * 2 + 10;
+  const DUR_H    = 18;
+  const DIV_GAP  = 12;
+  const CARD_BP  = 14;
+
+  function mStep(step) {
+    const tl = wrap(step.title || '', sTF, stepW - 18);
+    const pts = (step.points || []).map(p => wrap(p, sPF, stepW - 22));
+    return { tl, pts };
   }
+  const sms = steps.map(mStep);
 
-  phaseIds.forEach((pid, pi) => {
-    const pAngle = -Math.PI / 2 + (2 * Math.PI * pi / pCount);
-    const cosA = Math.abs(Math.cos(pAngle));
-    const sinA = Math.abs(Math.sin(pAngle));
-    const rdx  = Math.cos(pAngle);
-    const rdy  = Math.sin(pAngle);
-    const pd   = dims[pid];
-    const pCX  = cX + R1 * rdx;
-    const pCY  = cY + R1 * rdy;
-    pos[pid] = { x: pCX - pd.w / 2, y: pCY - pd.h / 2 };
-
-    const iIds = children[pid] || [];
-    if (!iIds.length) return;
-    let curR = radHalf(pd, cosA, sinA) + 14;
-    iIds.forEach((iid) => {
-      const id_ = dims[iid];
-      const rh = radHalf(id_, cosA, sinA);
-      const centerR = curR + rh;
-      pos[iid] = {
-        x: pCX + rdx * centerR - id_.w / 2,
-        y: pCY + rdy * centerR - id_.h / 2,
-      };
-      curR = centerR + rh + 16;
-    });
-  });
-
-  const PAD = 24;
-  let minX = Infinity, maxX = -Infinity;
-  let minY = Infinity, maxY = -Infinity;
-  nodes.forEach(n => {
-    const p = pos[n.id]; if (!p) return;
-    const d = dims[n.id];
-    if (p.x       < minX) minX = p.x;
-    if (p.x + d.w > maxX) maxX = p.x + d.w;
-    if (p.y       < minY) minY = p.y;
-    if (p.y + d.h > maxY) maxY = p.y + d.h;
-  });
-  const shiftX = minX < PAD ? PAD - minX : 0;
-  const shiftY = minY < PAD ? PAD - minY : 0;
-  if (shiftX > 0 || shiftY > 0) {
-    Object.keys(pos).forEach(id => {
-      if (!pos[id]) return;
-      pos[id].x += shiftX;
-      pos[id].y += shiftY;
-    });
+  function cardH(sm) {
+    return ICON_SEC + sm.tl.length * sTLH + 5 + DUR_H + DIV_GAP
+         + sm.pts.reduce((s, ls) => s + ls.length * sPLH + 5, 0) + CARD_BP;
   }
-  const actualW = maxX + shiftX + PAD;
-  const canvasH = maxY + shiftY + PAD;
+  const maxCH = sms.length ? Math.max(...sms.map(cardH)) : 220;
 
-  canvas.width  = Math.round(actualW * dpr);
-  canvas.height = Math.round(canvasH * dpr);
-  canvas.style.width  = actualW + 'px';
-  canvas.style.height = canvasH + 'px';
+  // ── headline measurement
+  const HLF  = 'bold 40px Caveat, sans-serif';
+  const HLLH = 48;
+  const hlL  = wrap(headline, HLF, W - PAD * 2);
+  const HL_H = hlL.length * HLLH + (subtitle ? 26 : 0) + 10;
+
+  // ── right panel measurement
+  const STLH  = 21;
+  const STGAP = 16;
+  const smst  = stats.map(s => wrap(s, '15px Caveat, sans-serif', RW - 30));
+  const statsH = smst.reduce((sum, ls) => sum + ls.length * STLH + STGAP, 0) + 8;
+  const qL     = quote ? wrap(quote, '16px Caveat, sans-serif', RW - 40) : [];
+  const QBH    = qL.length > 0 ? qL.length * 23 + 64 : 0;
+  const panelH = statsH + (QBH > 0 ? 20 + QBH : 0);
+
+  const ZONE_H = Math.max(maxCH, panelH);
+  const totalH = PAD + HL_H + 28 + ZONE_H + PAD;
+
+  // ── set up canvas
+  canvas.width        = Math.round(W * dpr);
+  canvas.height       = Math.round(totalH * dpr);
+  canvas.style.width  = W + 'px';
+  canvas.style.height = totalH + 'px';
+
   const ctx = canvas.getContext('2d');
   ctx.scale(dpr, dpr);
   const rc = rough.canvas(canvas);
 
-  edges.forEach((edge, ei) => {
-    const fp = pos[edge.from], tp = pos[edge.to];
-    if (!fp || !tp) return;
-    const fd = dims[edge.from], td = dims[edge.to];
-    const tcX = tp.x + td.w / 2, tcY = tp.y + td.h / 2;
-    const fcX = fp.x + fd.w / 2, fcY = fp.y + fd.h / 2;
-    const ep1 = exitPt(fp, fd, tcX, tcY);
-    const ep2 = exitPt(tp, td, fcX, fcY);
-    rc.line(ep1.x, ep1.y, ep2.x, ep2.y, {
-      roughness: 1.2, stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1.5, seed: ei * 7 + 1,
+  // Background
+  ctx.fillStyle = '#0d0d0d';
+  ctx.fillRect(0, 0, W, totalH);
+
+  let curY = PAD;
+
+  // ── HEADLINE
+  ctx.font         = HLF;
+  ctx.fillStyle    = C_HEAD;
+  ctx.textAlign    = 'left';
+  ctx.textBaseline = 'top';
+  hlL.forEach((line, i) => ctx.fillText(line, PAD, curY + i * HLLH));
+  curY += hlL.length * HLLH;
+
+  if (subtitle) {
+    ctx.font      = '500 12px -apple-system, BlinkMacSystemFont, sans-serif';
+    ctx.fillStyle = C_SUB;
+    ctx.fillText(subtitle.toUpperCase(), PAD + 2, curY + 8);
+    curY += 26;
+  }
+  curY += 28;
+  const ZY = curY;   // zone top Y
+
+  // ── STEP CARDS
+  steps.forEach((step, si) => {
+    const sm    = sms[si];
+    const cx    = PAD + si * (stepW + SGAP);
+    const ch    = cardH(sm);
+    const color = STEP_COLORS[si % STEP_COLORS.length];
+
+    // card bg + border (rough hand-drawn)
+    rc.rectangle(cx, ZY, stepW, ch, {
+      roughness: 1.1,
+      fill: C_CARD_BG,
+      fillStyle: 'solid',
+      stroke: color + '88',
+      strokeWidth: 1.5,
+      seed: si * 17 + 3,
     });
-    const ang = Math.atan2(ep2.y - ep1.y, ep2.x - ep1.x);
-    const al = 9, aa = 0.42;
-    rc.line(ep2.x, ep2.y, ep2.x - al * Math.cos(ang - aa), ep2.y - al * Math.sin(ang - aa),
-      { roughness: 0.7, stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1.3, seed: ei * 7 + 2 });
-    rc.line(ep2.x, ep2.y, ep2.x - al * Math.cos(ang + aa), ep2.y - al * Math.sin(ang + aa),
-      { roughness: 0.7, stroke: 'rgba(255,255,255,0.2)', strokeWidth: 1.3, seed: ei * 7 + 3 });
+
+    // accent top strip
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    if (ctx.roundRect) { ctx.roundRect(cx, ZY, stepW, 3, [3, 3, 0, 0]); }
+    else               { ctx.rect(cx, ZY, stepW, 3); }
+    ctx.fill();
+
+    // step number
+    ctx.font         = 'bold 10px -apple-system, sans-serif';
+    ctx.fillStyle    = color;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText(String(step.num || si + 1).padStart(2, '0'), cx + 10, ZY + 10);
+
+    // icon circle
+    const icx = cx + stepW / 2;
+    const icy = ZY + CARD_TP + IR;
+    ctx.fillStyle = color + '28';
+    ctx.beginPath(); ctx.arc(icx, icy, IR, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = color + 'aa';
+    ctx.lineWidth   = 1.5;
+    ctx.beginPath(); ctx.arc(icx, icy, IR, 0, Math.PI * 2); ctx.stroke();
+
+    // emoji
+    const es = IR <= 22 ? 18 : 20;
+    ctx.font         = `${es}px serif`;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillStyle    = '#fff';
+    ctx.fillText(step.icon || '●', icx, icy + 1);
+
+    let cy = ZY + ICON_SEC;
+
+    // title
+    ctx.font         = sTF;
+    ctx.fillStyle    = C_TITLE;
+    ctx.textAlign    = 'center';
+    ctx.textBaseline = 'top';
+    sm.tl.forEach((line, li) => ctx.fillText(line, icx, cy + li * sTLH));
+    cy += sm.tl.length * sTLH + 5;
+
+    // duration
+    if (step.duration) {
+      ctx.font      = '11px -apple-system, sans-serif';
+      ctx.fillStyle = C_DUR;
+      ctx.fillText(step.duration, icx, cy);
+    }
+    cy += DUR_H;
+
+    // divider
+    ctx.strokeStyle = C_DIV;
+    ctx.lineWidth   = 1;
+    ctx.setLineDash([]);
+    ctx.beginPath();
+    ctx.moveTo(cx + 14, cy); ctx.lineTo(cx + stepW - 14, cy);
+    ctx.stroke();
+    cy += DIV_GAP;
+
+    // bullet points
+    ctx.textAlign = 'left';
+    sm.pts.forEach(ptLines => {
+      ptLines.forEach((line, li) => {
+        ctx.font         = sPF;
+        ctx.fillStyle    = C_PT;
+        ctx.textBaseline = 'top';
+        ctx.fillText((li === 0 ? '· ' : '  ') + line, cx + 11, cy + li * sPLH);
+      });
+      cy += ptLines.length * sPLH + 5;
+    });
+
+    // arrow to next card (rough line + clean arrowhead)
+    if (si < steps.length - 1) {
+      const ax1 = cx + stepW + 2, ax2 = cx + stepW + SGAP - 2;
+      const ay  = ZY + CARD_TP + IR;
+      rc.line(ax1, ay, ax2 - 6, ay, {
+        roughness: 0.8, stroke: C_ARROW, strokeWidth: 1.8, seed: si * 7 + 1,
+      });
+      ctx.fillStyle = C_ARROW;
+      ctx.beginPath();
+      ctx.moveTo(ax2, ay);
+      ctx.lineTo(ax2 - 7, ay - 4);
+      ctx.lineTo(ax2 - 7, ay + 4);
+      ctx.closePath(); ctx.fill();
+    }
   });
 
-  nodes.forEach((n, ni) => {
-    const p = pos[n.id];
-    const d = dims[n.id];
-    const s = d.style;
-    if (!p) return;
-    rc.rectangle(p.x, p.y, d.w, d.h, {
-      roughness: s.roughness, fill: s.fill, fillStyle: 'solid',
-      stroke: s.stroke, strokeWidth: s.strokeW, seed: ni * 13 + 5,
-    });
-    ctx.font = s.font;
-    ctx.fillStyle = s.textColor;
-    ctx.textAlign = 'center';
+  // ── RIGHT PANEL — stats
+  let ry = ZY;
+  smst.forEach((lines, si) => {
+    ctx.font         = '14px serif';
+    ctx.fillStyle    = PRIMARY;
+    ctx.textAlign    = 'left';
     ctx.textBaseline = 'top';
-    const ncx = p.x + d.w / 2;
-    const tH = d.lines.length * s.lineH;
-    const ty = p.y + (d.h - tH) / 2;
-    d.lines.forEach((line, li) => ctx.fillText(line, ncx, ty + li * s.lineH));
+    ctx.fillText('📌', RX, ry + 2);
+
+    ctx.font      = '15px Caveat, sans-serif';
+    ctx.fillStyle = C_STAT;
+    lines.forEach((line, li) => ctx.fillText(line, RX + 26, ry + li * STLH + 2));
+    ry += Math.max(lines.length * STLH + STGAP, 36);
   });
+
+  // ── RIGHT PANEL — quote box (rough hand-drawn)
+  if (qL.length > 0) {
+    ry += 20;
+    rc.rectangle(RX, ry, RW, QBH, {
+      roughness: 1.3,
+      fill: 'rgba(255,255,255,0.02)',
+      fillStyle: 'solid',
+      stroke: C_QBRD,
+      strokeWidth: 1,
+      seed: 42,
+    });
+
+    // open-quote decoration
+    ctx.font         = 'bold 54px serif';
+    ctx.fillStyle    = PRIMARY;
+    ctx.textAlign    = 'left';
+    ctx.textBaseline = 'top';
+    ctx.fillText('\u201C', RX + 8, ry - 8);
+
+    // quote text
+    ctx.font      = '16px Caveat, sans-serif';
+    ctx.fillStyle = C_QTEXT;
+    ctx.textBaseline = 'top';
+    qL.forEach((line, li) => ctx.fillText(line, RX + 16, ry + 34 + li * 23));
+
+    // close-quote decoration
+    ctx.font      = 'bold 54px serif';
+    ctx.fillStyle = PRIMARY;
+    ctx.textAlign = 'right';
+    ctx.fillText('\u201D', RX + RW - 8, ry + QBH - 38);
+  }
 }
 
 // ── In-card render wrapper ─────────────────────────────────────────────────
@@ -1095,7 +1435,7 @@ const _VIRT_W = 1400;
 function renderExcalidrawDiagram(diagramData) {
   if (!_modalOffscreen) {
     const off = document.createElement('canvas');
-    _renderDiagram(diagramData, off, _VIRT_W);
+    _renderInfoGraphic(diagramData, off, _VIRT_W);
     _modalOffscreen = off;
   }
   const canvas = $('res-diagram-canvas');
@@ -1127,7 +1467,7 @@ function openDiagramModal() {
   document.body.style.overflow = 'hidden';
   if (!_modalOffscreen) {
     const off = document.createElement('canvas');
-    _renderDiagram(_currentDiagramData, off, _VIRT_W);
+    _renderInfoGraphic(_currentDiagramData, off, _VIRT_W);
     _modalOffscreen = off;
   }
   requestAnimationFrame(() => {
@@ -1274,14 +1614,20 @@ async function startAnalysis() {
 
   const maxFrames = parseInt($('frames-select').value);
   const lang = $('lang-select').value;
+  const isNbb = _currentMode === 'new_born_baby';
+  const sfKey = SERVER_HAS_SF_KEY ? '' : ($('sf-key-input')?.value.trim() || '');
 
   $('analyze-btn').disabled = true;
   $('analyze-btn').innerHTML = '<span style="animation:spin 1s linear infinite;display:inline-block">⏳</span> 分析中…';
   $('progress-section').style.display = 'block';
   $('result-section').style.display = 'none';
+  $('nbb-illustration-section').style.display = 'none';
   $('error-box').style.display = 'none';
   $('error-detail').style.display = 'none';
-  ['fetch','transcript','frames','analyze','output'].forEach(s => setStep(s,'pending','—'));
+  const baseSteps = ['fetch','transcript','frames','analyze','output'];
+  const nbbSteps  = ['classify','illustrate'];
+  baseSteps.forEach(s => setStep(s, 'pending', '—'));
+  if (isNbb) nbbSteps.forEach(s => setStep(s, 'pending', '—'));
 
   // scroll to progress
   $('progress-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -1291,7 +1637,11 @@ async function startAnalysis() {
     const res = await fetch('/api/analyze', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ url, lang, api_key: apiKey, max_frames: maxFrames, no_frames: maxFrames === 0 }),
+      body: JSON.stringify({
+        url, lang, api_key: apiKey, max_frames: maxFrames, no_frames: maxFrames === 0,
+        mode: _currentMode, sf_api_key: sfKey,
+        viz_template: _currentVizTemplate,
+      }),
     });
     const data = await res.json();
     if (!res.ok) { showError(data.error || '请求失败'); return; }
@@ -1427,8 +1777,25 @@ function parseMd(text) {
   return text.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
 }
 
+// ── NBB: toggle chapters reveal ─────────────────────────────────────────────
+function toggleNbbChapters() {
+  const arrow   = $('nbb-toggle-arrow');
+  const reveal  = $('chapters-reveal');
+  const isOpen  = reveal.style.display !== 'none';
+  if (isOpen) {
+    reveal.style.display = 'none';
+    arrow.classList.remove('flipped');
+  } else {
+    reveal.style.display = 'block';
+    arrow.classList.add('flipped');
+    reveal.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+}
+
 // ── render result ──────────────────────────────────────────────────────────
 function renderResult(data) {
+  const isNbb = data.illustration_url !== undefined && _currentMode === 'new_born_baby';
+
   // meta line: channel · duration · link
   $('res-meta-line').innerHTML =
     `<span>📺 ${data.channel}</span>` +
@@ -1481,13 +1848,55 @@ function renderResult(data) {
   reveal.style.display = 'none';
   reveal.classList.remove('entering');
 
+  // ── NBB 模式：显示插图卡 ──────────────────────────────────────────────────
+  if (isNbb) {
+    const nbbSec = $('nbb-illustration-section');
+    nbbSec.style.display = 'block';
+
+    const illUrl  = data.illustration_url || '';
+    const dd      = data.diagram_data || {};
+
+    if (illUrl) {
+      // 插图已到，直接展示
+      const img = $('nbb-illus-img');
+      img.onload = () => {
+        $('nbb-illus-loading').style.display = 'none';
+        img.style.display = 'block';
+      };
+      img.onerror = () => { $('nbb-illus-loading').style.display = 'none'; };
+      img.src = illUrl;
+    } else {
+      // 无插图（跳过 / 失败）：隐藏 loading，显示实际报错
+      const illustErrMsg = ($('msg-illustrate') || {}).textContent || '插图未生成';
+      $('nbb-illus-loading').innerHTML =
+        `<span class="nbb-loading-text" style="color:#e07a4f;white-space:pre-wrap;word-break:break-all">${illustErrMsg}</span>`;
+    }
+
+    // NBB 模式：概述区 + 传统 flip-stage 改为收起到 chapters
+    $('overview-band').classList.add('curtains-open');
+    flipStage.style.display = 'none';
+    reveal.style.display = 'none';    // 默认收起，用 toggle 展开
+
+    $('result-section').style.display = 'block';
+    $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+    // 仍然渲染 diagram offscreen（用于"信息图"弹窗按钮）
+    if (dd && dd.headline && dd.steps && dd.steps.length) {
+      _currentDiagramData = dd;
+      _modalOffscreen = null;
+      requestAnimationFrame(() => requestAnimationFrame(() => renderExcalidrawDiagram(dd)));
+    }
+    return;
+  }
+
+  // ── Old Timer 模式（原有逻辑） ─────────────────────────────────────────────
   // 显示结果（先显示再量 canvas）
   $('result-section').style.display = 'block';
   $('result-section').scrollIntoView({ behavior: 'smooth', block: 'start' });
 
   // 有图表：幕布 → 内页 → chapters
   const dd = data.diagram_data;
-  if (dd && dd.nodes && dd.nodes.length) {
+  if (dd && dd.headline && dd.steps && dd.steps.length) {
     _currentDiagramData = dd;
     _modalOffscreen = null;
     // 预先渲染到 offscreen，等幕布打开后 flip-stage 可见时直接显示
@@ -1520,6 +1929,16 @@ function resetForm() {
   $('diagram-card').style.visibility = '';
   $('chapters-reveal').style.display = 'none';
   $('chapters-reveal').classList.remove('entering');
+  // 重置 NBB
+  $('nbb-illustration-section').style.display = 'none';
+  const nbbImg = $('nbb-illus-img');
+  if (nbbImg) { nbbImg.src = ''; nbbImg.style.display = 'none'; }
+  const loading = $('nbb-illus-loading');
+  if (loading) {
+    loading.style.display = 'flex';
+    loading.innerHTML = '<span class="nbb-loading-text">正在生成主题插图…</span>';
+  }
+  $('nbb-toggle-arrow')?.classList.remove('flipped');
   $('error-box').style.display = 'none';
   $('analyze-btn').disabled = false;
   $('analyze-btn').innerHTML = '开始分析 →';

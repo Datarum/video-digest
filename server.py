@@ -14,6 +14,15 @@ from pathlib import Path
 from flask import Flask, Response, jsonify, render_template, request, send_from_directory
 
 BASE_DIR = Path(__file__).parent
+
+# ── load .env file (if present) ───────────────────────────────────────────────
+_env_file = BASE_DIR / ".env"
+if _env_file.exists():
+    for _line in _env_file.read_text().splitlines():
+        _line = _line.strip()
+        if _line and not _line.startswith("#") and "=" in _line:
+            _k, _, _v = _line.partition("=")
+            os.environ.setdefault(_k.strip(), _v.strip())
 OUTPUT_DIR = BASE_DIR / "output"
 OUTPUT_DIR.mkdir(exist_ok=True)
 
@@ -39,8 +48,12 @@ def _run_pipeline(
     api_key: str,
     max_frames: int,
     no_frames: bool,
+    mode: str = "old_timer",
+    sf_api_key: str = "",
+    viz_template: str = "auto",
 ) -> None:
     q = _jobs[job_id]
+    is_nbb = (mode == "new_born_baby")
 
     def emit(event_type: str, **kwargs):
         _put(q, event_type, **kwargs)
@@ -83,6 +96,27 @@ def _run_pipeline(
                  message=f"Whisper 已转录 {len(segments)} 段")
 
         merged = merge_segments(segments, window_seconds=60.0)
+
+        # ── Step 2.5: content type classification (New Born Baby only) ────────
+        content_type_data = {}
+        if is_nbb:
+            if viz_template and viz_template != "auto":
+                # User manually specified a viz template — skip Claude classification
+                content_type_data = {"viz_template": viz_template}
+                emit("step", step="classify", status="done",
+                     message=f"样式: {viz_template}（手动指定）")
+            else:
+                emit("step", step="classify", status="active", message="正在识别内容类型…")
+                from videodigest.analyzer import analyze_content_type
+                content_type_data = analyze_content_type(
+                    video_title=info.title,
+                    segments=merged,
+                    api_key=api_key,
+                )
+                ct = content_type_data.get("content_type", "educational")
+                vt = content_type_data.get("viz_template", "comparison")
+                emit("step", step="classify", status="done",
+                     message=f"类型: {ct}  ·  布局: {vt}")
 
         # ── Step 3: key frames ────────────────────────────────────────────────
         frames = []
@@ -132,8 +166,39 @@ def _run_pipeline(
             api_key=api_key,
             output_language=lang,
         )
+        summary.content_type_data = content_type_data
         emit("step", step="analyze", status="done",
              message=f"分析完成 — {len(summary.chapters)} 章节")
+
+        # ── Step 4.5: generate infographic illustration (New Born Baby only) ────
+        if is_nbb and sf_api_key:
+            emit("step", step="illustrate", status="active", message="正在生成主题插图…")
+            try:
+                from videodigest.infographic import build_infographic_prompt, call_siliconflow
+                key_insights = [
+                    str(s) for s in summary.diagram_data.get("stats", [])[:3]
+                ]
+                infographic_prompt, neg_prompt = build_infographic_prompt(
+                    content_type_data=content_type_data,
+                    overview=summary.overview,
+                    key_insights=key_insights,
+                    diagram_data=summary.diagram_data,
+                )
+                illustration_url = call_siliconflow(
+                    prompt=infographic_prompt,
+                    api_key=sf_api_key,
+                    negative_prompt=neg_prompt,
+                )
+                if illustration_url:
+                    summary.illustration_url = illustration_url
+                    emit("step", step="illustrate", status="done", message="插图生成完成")
+                else:
+                    emit("step", step="illustrate", status="warn", message="插图生成失败，跳过")
+            except Exception as ill_err:
+                emit("step", step="illustrate", status="warn",
+                     message=f"插图跳过: {ill_err}")
+        elif is_nbb and not sf_api_key:
+            emit("step", step="illustrate", status="skip", message="未配置硅基流动 Key，跳过插图")
 
         # ── Step 5: save output ───────────────────────────────────────────────
         emit("step", step="output", status="active", message="正在保存报告…")
@@ -197,8 +262,13 @@ def _run_pipeline(
 
 @app.route("/")
 def index():
-    server_has_key = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    return render_template("index.html", server_has_key=server_has_key)
+    server_has_key    = bool(os.environ.get("ANTHROPIC_API_KEY"))
+    server_has_sf_key = bool(os.environ.get("SILICONFLOW_API_KEY"))
+    return render_template(
+        "index.html",
+        server_has_key=server_has_key,
+        server_has_sf_key=server_has_sf_key,
+    )
 
 
 @app.route("/api/analyze", methods=["POST"])
@@ -212,6 +282,10 @@ def api_analyze():
     if not api_key:
         return jsonify({"error": "需要 Anthropic API Key"}), 400
 
+    mode = data.get("mode", "old_timer")
+    sf_api_key = data.get("sf_api_key", "").strip() or os.environ.get("SILICONFLOW_API_KEY", "")
+    viz_template = data.get("viz_template", "auto").strip()
+
     job_id = str(uuid.uuid4())
     _jobs[job_id] = queue.Queue()
 
@@ -224,6 +298,9 @@ def api_analyze():
             api_key,
             int(data.get("max_frames", 12)),
             bool(data.get("no_frames", False)),
+            mode,
+            sf_api_key,
+            viz_template,
         ),
         daemon=True,
     ).start()

@@ -1,5 +1,6 @@
 """M3 - Downloader: fetch subtitles, audio, and video via yt-dlp."""
 
+import os
 from pathlib import Path
 from typing import List, Optional
 
@@ -13,6 +14,18 @@ _DEFAULT_LANG_PREF = ["zh-Hans", "zh-Hant", "zh", "en"]
 # Use browser cookies to authenticate with YouTube and avoid 403 errors.
 # Change to ("chrome",) or ("firefox",) if you don't use Safari.
 _COOKIES_OPTS = {"cookiesfrombrowser": ("chrome",)}
+
+# Read proxy from environment variables (HTTPS_PROXY / HTTP_PROXY / YT_DLP_PROXY)
+def _proxy_opts() -> dict:
+    proxy = (
+        os.environ.get("YT_DLP_PROXY")
+        or os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+        or ""
+    )
+    return {"proxy": proxy} if proxy else {}
 
 
 def download_subtitles(
@@ -37,7 +50,9 @@ def download_subtitles(
         "subtitleslangs": langs,
         "subtitlesformat": "srt",
         "outtmpl": str(output_dir / "%(id)s.%(ext)s"),
+        "socket_timeout": 30,
         **_COOKIES_OPTS,
+        **_proxy_opts(),
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -79,7 +94,9 @@ def download_audio(video_info: VideoInfo, output_dir: Path) -> Path:
             }
         ],
         "outtmpl": str(output_dir / f"{video_info.video_id}.%(ext)s"),
+        "socket_timeout": 30,
         # No cookies: android client does not support cookies and will be skipped if present
+        **_proxy_opts(),
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -113,7 +130,9 @@ def download_video(
         "extractor_args": {"youtube": {"player_client": ["android"]}},
         "merge_output_format": "mp4",
         "outtmpl": str(output_dir / f"{video_info.video_id}.%(ext)s"),
+        "socket_timeout": 30,
         # No cookies: android client does not support cookies and will be skipped if present
+        **_proxy_opts(),
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:

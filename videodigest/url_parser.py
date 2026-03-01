@@ -1,5 +1,6 @@
 """M2 - URL Parser: validate YouTube URLs, extract video ID, fetch metadata."""
 
+import os
 import re
 from dataclasses import dataclass, field
 from typing import List
@@ -53,10 +54,19 @@ def get_video_info(url: str) -> VideoInfo:
     video_id = extract_video_id(url)
     normalized_url = f"https://www.youtube.com/watch?v={video_id}"
 
+    proxy = (
+        os.environ.get("YT_DLP_PROXY")
+        or os.environ.get("HTTPS_PROXY")
+        or os.environ.get("https_proxy")
+        or os.environ.get("HTTP_PROXY")
+        or os.environ.get("http_proxy")
+        or ""
+    )
     ydl_opts = {
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
+        **({"proxy": proxy} if proxy else {}),
     }
 
     with yt_dlp.YoutubeDL(ydl_opts) as ydl:
